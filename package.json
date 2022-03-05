@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/redransil/filecoin-renewables-purchases#readme",
   "dependencies": {
-    "axios": "^0.26.0"
+    "axios": "^0.26.0",
+    "csv-parse": "^5.0.4",
+    "json2csv": "^5.0.7"
   }
 }
