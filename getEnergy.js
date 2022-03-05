@@ -1,12 +1,9 @@
 let axios = require("axios")
 const fs = require('fs')
 const {performance} = require('perf_hooks')
-// const { parse } = require('csv-parse/sync')
-// const json2csvparse = require('json2csv');
 
 // Take whatever total energy data is given, returns sum of upper lim
 function sum_total_energy_upper(data){
-  // console.log(data)
 
   data_with_time_difference = data.map((elem, index, array) => {
     prevTime = elem.timestamp
@@ -21,8 +18,6 @@ function sum_total_energy_upper(data){
     return toReturn
   })
 
-  // console.log(data_with_time_difference)
-
   totalEnergy = data_with_time_difference.reduce((previousValue, elem) => {
     return previousValue + elem.total_energy_kWh_upper
   }, 0)
@@ -33,35 +28,32 @@ function sum_total_energy_upper(data){
 async function get_total_energy_data(start, end, minerID){
 
   // Major questions:
-  // (1) what if the limit is too small?
-    // Checked this with timers (below), we can make the limit high enough for a quarter
+  // (1) what if the limit (of datapoints returned from energy API) is too small?
+    // Checked this with timers (below), we can make the limit high enough for the entire chain for a quarter.
+    // Individual minerIDs have fewer datapoints so should be fine for much longer
+    // If you are looking at the total chain for more than three months, data may be cut off.
+    // Will throw an error below if you hit the limit
   // (2) what if there isn't a block exactly at the time start and end?
     // For individual miners, this is expected to happen frequently
- // (3) Does the output actually match what I calculated previously?
+ // (3) How close is the output to previous estimates?
+
+ // To-do list:
+  // Give upper, est, and lower
+  // Allow user to request model version
+  // Possibly allow user more visibility into and control over request limit
 
   // The filecoin green api can only use timestamps at one day resolution
   // Limit should therefore be multiple of 24*60*2=2880 (number of blocks in one day)
   one_day_blocks = 2880
   limit = one_day_blocks*120
 
-  // Total energy request
-  // requestString = `https://api.filecoin.energy/models/export?end=${end}&id=0&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
-  // requestString = `https://api.filecoin.energy/models/export?end=${end}&id=0&limit=${limit}&offset=0&start=${start}`
-  // preRequest = performance.now()
-  // var total_energy = await axios.get(requestString)
-  // postRequest = performance.now()
-  // total_energy_data = total_energy.data.data
-  console.log(`Calculating sum of upper limit for minerID ${minerID} from ${start} to ${end}`)
-  // console.log(`Array length from request: ${total_energy_data.length}`)
-  // var total_energy_records_found = total_energy_data.length
-  // console.log(`Request limit: ${limit}`)
-  // console.log(`Request time: ${postRequest - preRequest} ms`)
+  // console.log(`Calculating sum of upper limit for minerID ${minerID} from ${start} to ${end}`)
 
   // Sealing request
   requestString = `https://api.filecoin.energy/models/export?end=${end}&id=4&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
   var sealing_records = await axios.get(requestString)
   sealing_records_data = sealing_records.data.data
-  console.log(`Array length from sealing request: ${sealing_records_data.length}`)
+  // console.log(`Array length from sealing request: ${sealing_records_data.length}`)
   totalSealed_GiB = sealing_records_data.reduce((previousValue, elem) => {
     return previousValue + Number(elem.sealed_this_epoch_GiB)
   }, 0)
@@ -80,73 +72,19 @@ async function get_total_energy_data(start, end, minerID){
     }
   }
 
-  // Errors related to request
-  // if(total_energy_data.length == limit){throw new Error('Limit too short for request')}
-  // if(total_energy_data.length == 0){
-  //   // throw new Error('Found no records')
-  //   return {
-  //     'total_energy_upper_MWh':0,
-  //     'total_energy_records_found' : 0
-  //   }
-  // }
-
-  // Add in records at the beginning and end, for the energy array
-  // console.log('')
-  // console.log('First record:')
-  // console.log(total_energy_data[0])
-  // requestStartTime = new Date(start)
-  // firstBlockTime = new Date(total_energy_data[0].timestamp)
-  // console.log(`(Energy) Start time difference: ${(firstBlockTime - requestStartTime)/1000/3600} hours`)
-  //
-  // if (!(firstBlockTime - requestStartTime) == 0){
-  //   newFirstRecord = {
-  //     epoch: null,
-  //     miner: total_energy_data[0].miner,
-  //     total_energy_kW_lower: total_energy_data[0].total_energy_kW_lower,
-  //     total_energy_kW_estimate: total_energy_data[0].total_energy_kW_estimate,
-  //     total_energy_kW_upper: total_energy_data[0].total_energy_kW_upper,
-  //     timestamp: start+'T00:00:00.000Z'
-  //   }
-  //
-  //   total_energy_data.unshift(newFirstRecord)
-  // }
-  //
-  // console.log(`(Energy) Array length after adjusting first block: ${total_energy_data.length}`)
-  // // console.log(total_energy_data[0])
-  //
-  // // console.log('Last record:')
-  // // console.log(total_energy_data[total_energy_data.length - 1])
-  // requestEndTime = new Date(end)
-  // lastBlockTime = new Date(total_energy_data[total_energy_data.length - 1].timestamp)
-  // console.log(`(Energy) End time difference: ${(requestEndTime - lastBlockTime)/1000/3600} hours`)
-  //
-  // if (!(requestEndTime - lastBlockTime) == 0){
-  //   newLastRecord = {
-  //     epoch: null,
-  //     miner: total_energy_data[total_energy_data.length - 1].miner,
-  //     total_energy_kW_lower: total_energy_data[total_energy_data.length - 1].total_energy_kW_lower,
-  //     total_energy_kW_estimate: total_energy_data[total_energy_data.length - 1].total_energy_kW_estimate,
-  //     total_energy_kW_upper: total_energy_data[total_energy_data.length - 1].total_energy_kW_upper,
-  //     timestamp: end+'T00:00:00.000Z'
-  //   }
-  //
-  //   total_energy_data.push(newLastRecord)
-  // }
-  // console.log(`(Energy) Array length after adjusting last block: ${total_energy_data.length}`)
-  // // console.log('Last record:')
-  // // console.log(total_energy_data[total_energy_data.length - 1])
-
-  //2021-10-01T00:00:00.000Z
+  // Errors related to number of datapoints in request
+  if(sealing_records_data.length == limit){throw new Error('Limit too short for sealing request')}
+  if(storage_records_data.length == limit){throw new Error('Limit too short for storage request')}
 
 
   // Add in records at the beginning and end, for the storage array
-  console.log('')
-  // console.log('First storage record:')
-  // console.log(storage_records_data[0])
+  // If we don't do this, the energy used to store files between the end points (of the request)
+  // and the first/last data points returned will be zero
+  // console.log('')
   requestStartTime = new Date(start)
   firstBlockTime = new Date(storage_records_data[0].timestamp)
-  console.log(`(Storage) Start time difference: ${(firstBlockTime - requestStartTime)/1000/3600} hours`)
-  console.log(`(Storage)Array length from storage request: ${storage_records_data.length}`)
+  // console.log(`(Storage) Start time difference: ${(firstBlockTime - requestStartTime)/1000/3600} hours`)
+  // console.log(`(Storage)Array length from storage request: ${storage_records_data.length}`)
 
   if (!(firstBlockTime - requestStartTime) == 0){
     newFirstRecord = {
@@ -159,11 +97,11 @@ async function get_total_energy_data(start, end, minerID){
     storage_records_data.unshift(newFirstRecord)
   }
 
-  console.log(`(Storage) Array length after adjusting first block: ${storage_records_data.length}`)
+  // console.log(`(Storage) Array length after adjusting first block: ${storage_records_data.length}`)
 
   requestEndTime = new Date(end)
   lastBlockTime = new Date(storage_records_data[storage_records_data.length - 1].timestamp)
-  console.log(`(Storage) End time difference: ${(requestEndTime - lastBlockTime)/1000/3600} hours`)
+  // console.log(`(Storage) End time difference: ${(requestEndTime - lastBlockTime)/1000/3600} hours`)
 
   if (!(requestEndTime - lastBlockTime) == 0){
     newLastRecord = {
@@ -175,27 +113,8 @@ async function get_total_energy_data(start, end, minerID){
 
     storage_records_data.push(newLastRecord)
   }
-  console.log(`(Storage) Array length after adjusting last block: ${storage_records_data.length}`)
+  // console.log(`(Storage) Array length after adjusting last block: ${storage_records_data.length}`)
   // console.log(storage_records_data)
-
-
-  // // Sum energy
-  // preCalc = performance.now()
-  // result_kWh = sum_total_energy_upper(total_energy_data)
-  // postCalc = performance.now()
-  // console.log(`Sum time: ${postCalc - preCalc} ms`)
-
-  // Estimate storage energy
-  datapointSum_GiB = storage_records_data.reduce((previousValue, elem) => {
-    return previousValue + Number(elem.capacity_GiB)
-  }, 0)
-  datapointAverageCapacity_GiB = datapointSum_GiB/storage_records_data.length
-  startTime_stamp = new Date(start)
-  endTime_stamp = new Date(end)
-  difference_totalperiod_ms = endTime_stamp - startTime_stamp
-  difference_totalperiod_hours = difference_totalperiod_ms/1000/3600
-  datapointAvgStorageTime_GiB_hours = difference_totalperiod_hours * datapointAverageCapacity_GiB
-  datapointAvg_Storage_energy_MWh = datapointAvgStorageTime_GiB_hours * 8.1E-12*1024**3/1E6
 
   // Find actual storage energy from API data
   storage_with_time_difference = storage_records_data.map((elem, index, array) => {
@@ -210,9 +129,6 @@ async function get_total_energy_data(start, end, minerID){
     toReturn['GiB_hours'] = Number(elem.capacity_GiB) * difference_hours
     return toReturn
   })
-
-  // console.log(storage_with_time_difference)
-
   integrated_GiB_hr = storage_with_time_difference.reduce((previousValue, elem) => {
     return previousValue + elem.GiB_hours
   }, 0)
@@ -222,7 +138,7 @@ async function get_total_energy_data(start, end, minerID){
   sealingEnergy_upper_MWh = totalSealed_GiB*5.60E-8*1024**3/1E6
   storage_upper_integrated_MWh = integrated_GiB_hr* 8.1E-12*1024**3/1E6
   total_energy_upper_MWh_recalc = (sealingEnergy_upper_MWh + storage_upper_integrated_MWh)*PUE_upper
-  margin = 1
+  margin = 1 // If we want to increase REC purchase
 
   to_return = {
     'minerID': minerID,

@@ -59,7 +59,7 @@ async function main() {
 
 console.log(outData)
 
-fs.writeFileSync('outData.csv', json2csvparse.parse(outData))
+fs.writeFileSync('EAC_purchase_summary.csv', json2csvparse.parse(outData))
 
 }
 
