@@ -1,35 +1,38 @@
 let axios = require("axios")
-let api_header = require('./zl_api_header.json') // Plan is for this API to be public ASAP = )
+// let api_header = require('./zl_api_header.json') // Plan is for this API to be public ASAP = )
 let getEnergy = require("./getEnergy")
 const json2csvparse = require('json2csv')
 const fs = require('fs')
+let findLocation = require("../filecoin-sp-locations/findLocation").findLocation
 
 start = '2020-07-01'
-end = '2022-03-04' // ie today's date
+end = '2022-03-08' // ie today's date
 
 async function main() {
 
   // First get the list of nodes that Zero Labs has records for
   requestString = 'https://proofs-api.zerolabs.green/api/partners/filecoin/nodes'
-  var nodesResult = await axios.get(
-    requestString, {
-      headers:api_header
-    })
+  var nodesResult = await axios.get(requestString) // API key should no longer be necessary
+  // var nodesResult = await axios.get(
+  //   requestString, {
+  //     headers:api_header
+  //   })
 
-  outData = nodesResult.data.map(x => { return {"minerID":x.id}})
+  // Will return dataset including minerIDs and country of each
+  outData = nodesResult.data.map(x => {
+    return {"minerID":x.id,
+      "country" : findLocation({"minerID": x.id, "loc_version": '1.2.0'}).country
+  }})
   // console.log(outData)
 
-  // For each node, examine energy purchases
+  // For each node in the ZL system, examine energy purchases
   for (i=0; i<outData.length; i++){
 
     console.log(outData[i])
 
     // Get Transaction data
     requestString = `https://proofs-api.zerolabs.green/api/partners/filecoin/nodes/${outData[i].minerID}/transactions`
-    var transactionsResult = await axios.get(
-      requestString, {
-        headers:api_header
-      })
+    var transactionsResult = await axios.get(requestString)
 
     // Record transaction data
     outData[i].pageUrl = transactionsResult.data.pageUrl
@@ -37,10 +40,7 @@ async function main() {
 
     // Get Contracts data
     requestString = `https://proofs-api.zerolabs.green/api/partners/filecoin/nodes/${outData[i].minerID}/contracts`
-    var contractsResult = await axios.get(
-      requestString, {
-        headers:api_header
-      })
+    var contractsResult = await axios.get(requestString)
 
     // Sum and record volume under contract
     openVol = contractsResult.data.contracts.reduce((previousValue, elem) => {
