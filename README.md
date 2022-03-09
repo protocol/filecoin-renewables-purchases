@@ -2,7 +2,7 @@
 Renewable energy purchases for the Filecoin network
 
 
-Examines EAC purchases by SP, using the Zero Labs and Filecoin Energy Dashboard APIs. (ZL API currently requires key, will be made public soon)
+***catalog_renewables_purchases** Examines EAC purchases by SP, using the public Zero Labs and Filecoin Energy Dashboard APIs.
 
 ## EAC Tracking
 Files showing Energy Attribute Certificate (EAC) renewable energy purchases on the Filecoin network, matched to total energy use of the given node. This may not reflect all existing renewable energy purchase contracts with brokers. Archive of output files:
