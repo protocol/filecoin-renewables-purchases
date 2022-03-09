@@ -1,5 +1,5 @@
 let axios = require("axios")
-// let api_header = require('./zl_api_header.json') // Plan is for this API to be public ASAP = )
+// let api_header = require('./zl_api_header.json') // API is now public
 let getEnergy = require("./getEnergy")
 const json2csvparse = require('json2csv')
 const fs = require('fs')
