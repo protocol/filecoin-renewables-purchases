@@ -25,6 +25,7 @@ function sum_total_energy_upper(data){
   return totalEnergy
 }
 
+// Date format example: '2020-07-01'
 async function get_total_energy_data(start, end, minerID){
 
   // Major questions:
@@ -154,7 +155,7 @@ async function get_total_energy_data(start, end, minerID){
     // 'datapointAvg_Storage_energy_MWh' : datapointAvg_Storage_energy_MWh,
     'integrated_GiB_hr' : integrated_GiB_hr,
     'storage_upper_integrated_MWh' : storage_upper_integrated_MWh,
-    'total_energy_upper_MWh_recalc' : total_energy_upper_MWh_recalc,
+    'total_energy_upper_MWh' : total_energy_upper_MWh_recalc,
     'REC_purchase_with_margin' : Math.ceil(total_energy_upper_MWh_recalc * margin)
   }
 

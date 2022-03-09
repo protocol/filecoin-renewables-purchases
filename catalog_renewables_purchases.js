@@ -60,7 +60,7 @@ async function catalog_renewables_purchases() {
 
     // Compare to the volume of energy consumed by this node over the history of the network
     enResult = await getEnergy.get_total_energy_data(start, end, outData[i].minerID)
-    outData[i].EnergyConsumed_Upper_MWh = enResult.total_energy_upper_MWh_recalc
+    outData[i].EnergyConsumed_Upper_MWh = enResult.total_energy_upper_MWh
     outData[i].Renewable_Consumed_Ratio = outData[i].AllEACs_MWh / outData[i].EnergyConsumed_Upper_MWh
 
   }
