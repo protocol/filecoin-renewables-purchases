@@ -100,7 +100,7 @@ async function get_total_energy_data(start, end, minerID){
 
   // console.log(`(Storage) Array length after adjusting first block: ${storage_records_data.length}`)
 
-  requestEndTime = new Date(end)
+  requestEndTime = new Date(end+'T23:59:30.000Z')
   lastBlockTime = new Date(storage_records_data[storage_records_data.length - 1].timestamp)
   // console.log(`(Storage) End time difference: ${(requestEndTime - lastBlockTime)/1000/3600} hours`)
 
@@ -109,7 +109,7 @@ async function get_total_energy_data(start, end, minerID){
       epoch: null,
       miner: storage_records_data[storage_records_data.length - 1].miner,
       capacity_GiB: storage_records_data[storage_records_data.length - 1].capacity_GiB,
-      timestamp: end+'T00:00:00.000Z'
+      timestamp: end+'T23:59:30.000Z'
     }
 
     storage_records_data.push(newLastRecord)
@@ -141,6 +141,12 @@ async function get_total_energy_data(start, end, minerID){
   total_energy_upper_MWh_recalc = (sealingEnergy_upper_MWh + storage_upper_integrated_MWh)*PUE_upper
   margin = 1 // If we want to increase REC purchase
 
+  // Calculate the whole time period of request, in hours
+  // difference_totalperiod_hours = (requestEndTime.getTime() - requestStartTime.getTime())/1000/3600
+  starting_time = new Date(storage_with_time_difference[0].timestamp).getTime()
+  ending_time = new Date(storage_with_time_difference[storage_with_time_difference.length - 1].timestamp).getTime()
+  difference_totalperiod_hours = (ending_time - starting_time)/1000/3600
+
   to_return = {
     'minerID': minerID,
     'start' : start,
@@ -148,15 +154,17 @@ async function get_total_energy_data(start, end, minerID){
     // 'total_energy_upper_MWh':result_kWh/1000,
     // 'total_energy_records_found' : total_energy_records_found,
     'totalSealed_GiB': totalSealed_GiB,
-    'sealingEnergy_upper_MWh': sealingEnergy_upper_MWh,
+    // 'sealingEnergy_upper_MWh': sealingEnergy_upper_MWh,
     // 'datapointAverageCapacity_GiB' : datapointAverageCapacity_GiB,
-    // 'difference_totalperiod_hours' : difference_totalperiod_hours,
+    'total_time_hours' : difference_totalperiod_hours,
     // 'datapointAvgStorageTime_GiB_hours' : datapointAvgStorageTime_GiB_hours,
     // 'datapointAvg_Storage_energy_MWh' : datapointAvg_Storage_energy_MWh,
-    'integrated_GiB_hr' : integrated_GiB_hr,
-    'storage_upper_integrated_MWh' : storage_upper_integrated_MWh,
+    'initial_capacity_GiB': storage_records_data[0].capacity_GiB,
+    'final_capacity_GiB': storage_records_data[storage_records_data.length - 1].capacity_GiB,
+    'time_average_capacity_GiB' : integrated_GiB_hr / difference_totalperiod_hours,
+    // 'storage_upper_integrated_MWh' : storage_upper_integrated_MWh,
     'total_energy_upper_MWh' : total_energy_upper_MWh_recalc,
-    'REC_purchase_with_margin' : Math.ceil(total_energy_upper_MWh_recalc * margin)
+    // 'REC_purchase_with_margin' : Math.ceil(total_energy_upper_MWh_recalc * margin)
   }
 
   return to_return
