@@ -168,7 +168,8 @@ async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_no
 async function new_EAC_redemption_order(orderFolder, locationFilename, supplyFilename){
 
   // Load locations from file
-  locations = require("./"+orderFolder+"/"+locationFilename)
+  settings = require("./"+orderFolder+"/orderSettings.json")
+  locations = require("./"+orderFolder+"/"+settings.locationFilename)
 
   // The data schema changed, so rename if necessary
   if ('providerLocations' in locations){
@@ -197,7 +198,7 @@ async function new_EAC_redemption_order(orderFolder, locationFilename, supplyFil
   })
 
   // Load supply, which are EACs under contract we will allocate
-  const supply = parse(fs.readFileSync("./"+orderFolder+"/"+supplyFilename, {encoding:'utf8', flag:'r'}), {"columns":true})
+  const supply = parse(fs.readFileSync("./"+orderFolder+"/"+settings.supplyFilename, {encoding:'utf8', flag:'r'}), {"columns":true})
 
   // These arrays will be output orders for I-REC
   new_beneficiaries = []
@@ -236,5 +237,31 @@ async function new_EAC_redemption_order(orderFolder, locationFilename, supplyFil
 
 }
 
+async function checkOrder(folder){
 
-module.exports = {new_EAC_redemption_order}
+  settings = require("./"+folder+"/orderSettings.json")
+  const supply = parse(fs.readFileSync("./"+folder+"/"+settings.supplyFilename, {encoding:'utf8', flag:'r'}), {"columns":true})
+  const redemptions = parse(fs.readFileSync("./"+folder+"/redemptions.csv", {encoding:'utf8', flag:'r'}), {"columns":true})
+
+  // Check that supply adds correctly
+  for (i=0; i<supply.length; i++){
+
+    console.log('')
+    console.log(`${supply[i].redemption_account} from ${supply[i].start} to ${supply[i].end}:`)
+
+    redemptionsThisLine = redemptions.filter(x => {
+      return (x.redemption_account == supply[i].redemption_account) && (x.start_date == supply[i].start) && (x.end_date == supply[i].end)
+    })
+
+    totalRedemptions = redemptionsThisLine.reduce((prev, elem) => prev+Number(elem.volume_required), 0)
+
+    if (totalRedemptions == Number(supply[i].volume_MWh)){
+      console.log(`  Supply of ${supply[i].volume_MWh} matches redemption total of ${totalRedemptions}`)
+    } else {
+      console.log(`  >>>>WARNING: Supply of ${supply[i].volume_MWh} DOESN'T match redemption total of ${totalRedemptions}`)
+    }
+
+  }
+}
+
+module.exports = {new_EAC_redemption_order, checkOrder}

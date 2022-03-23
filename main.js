@@ -1,11 +1,20 @@
 let catalog_renewables_purchases = require("./catalog_renewables_purchases").catalog_renewables_purchases
 let orders = require("./orders")
+let getEnergy = require('./getEnergy')
 
 // Run this to assess renewable energy purchases that have been associated with nodes
 // catalog_renewables_purchases()
 
 // Take supply and match to SP electricity to produce a redemption order
-folder = '20220318_order'
-locationFilename = '20220317-synthetic-country-state-province-locations-latest.json' // For this order, using a version before synthetic locations (so all are tied to an IP location directly)
-supplyFilename = '20210309_supply.csv'
-orders.new_EAC_redemption_order(folder, locationFilename, supplyFilename)
+folder = '20220309_order'
+// orders.new_EAC_redemption_order(folder)
+
+// Run checks
+orders.checkOrder(folder)
+
+// async function main(){
+//   result = await getEnergy.get_total_energy_data('2020-08-01', '2022-03-20', 'f066596')
+//   console.log(result)
+// }
+//
+// main()
