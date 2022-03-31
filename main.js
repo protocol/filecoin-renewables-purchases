@@ -6,10 +6,11 @@ let getEnergy = require('./getEnergy')
 // catalog_renewables_purchases()
 
 // Take supply and match to SP electricity to produce a redemption order
-folder = '20220309_order'
+// folder = '20220309_order'
 // orders.new_EAC_redemption_order(folder)
 
 // Run checks
+folder = '20220318_order'
 orders.checkOrder(folder)
 
 // async function main(){

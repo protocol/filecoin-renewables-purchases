@@ -241,7 +241,7 @@ async function checkOrder(folder){
 
   settings = require("./"+folder+"/orderSettings.json")
   const supply = parse(fs.readFileSync("./"+folder+"/"+settings.supplyFilename, {encoding:'utf8', flag:'r'}), {"columns":true})
-  const redemptions = parse(fs.readFileSync("./"+folder+"/redemptions.csv", {encoding:'utf8', flag:'r'}), {"columns":true})
+  const redemptions = parse(fs.readFileSync("./"+folder+"/redemptions_ewc.csv", {encoding:'utf8', flag:'r'}), {"columns":true})
 
   // Check that supply adds correctly
   for (i=0; i<supply.length; i++){
