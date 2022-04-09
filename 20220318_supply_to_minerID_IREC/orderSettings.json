@@ -1,4 +1,5 @@
 {
   "locationFilename": "20220317-synthetic-country-state-province-locations-latest.json",
-  "supplyFilename": "20220309_supply.csv"
+  "supplyFilename": "20220309_supply.csv",
+  "finalOrder":"20220403_redemptions_ewc_final.csv"
 }

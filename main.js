@@ -6,12 +6,12 @@ let getEnergy = require('./getEnergy')
 // catalog_renewables_purchases()
 
 // Take supply and match to SP electricity to produce a redemption order
-// folder = '20220309_order'
-// orders.new_EAC_redemption_order(folder)
+folder = '20220407_fractionalize_contract_supply'
+orders.new_EAC_redemption_order(folder)
 
 // Run checks
-folder = '20220318_order'
-orders.checkOrder(folder)
+// folder = '20220318_order'
+// orders.checkOrder(folder)
 
 // async function main(){
 //   result = await getEnergy.get_total_energy_data('2020-08-01', '2022-03-20', 'f066596')

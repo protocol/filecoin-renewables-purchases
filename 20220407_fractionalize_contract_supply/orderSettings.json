@@ -1,4 +1,5 @@
 {
   "locationFilename": "20220317-synthetic-country-state-province-locations-latest.json",
-  "supplyFilename": "20220309_supply.csv"
+  "supplyFilename": "20220407_supply.csv",
+  "previousOrders": ["20220318_supply_to_minerID_IREC"]
 }

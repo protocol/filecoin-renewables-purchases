@@ -4,9 +4,16 @@ let getEnergy = require('./getEnergy')
 let axios = require('axios')
 const json2csvparse = require('json2csv')
 
-// Does not support renewable energy purchases not cataloged on the ZL API
-// And skips providers who are on the ZL API
-// For US providers, build more granular matching than country
+// Do:
+  // Prioritize based on Estuary
+    // https://api.estuary.tech/public/miners
+  // Prioritize based on filrep score
+    // https://api.filrep.io/api/v1/miners?limit=4296
+  // Prioritize based on 1 IP vs synthetic (doing this already)
+  // Support renewables purchases that are ordered by not issued yet
+  // Subtract existing renewable energy (don't just ignore if in ZL)
+  // For US and Chinese providers, build more granular matching than country
+
 
 // New Beneficiaries Output:Name, Country Name, Location
   // Name: minerID
@@ -210,7 +217,7 @@ async function new_EAC_redemption_order(orderFolder, locationFilename, supplyFil
 
   // Walk through supply, line by line, to allocate to SPs
   for (i=0; i<supply.length; i++){
-    // console.log(supply[i])
+    console.log(supply[i])
 
     supplyRecord = supply[i]
 
