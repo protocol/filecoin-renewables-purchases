@@ -51,7 +51,8 @@ async function get_total_energy_data(start, end, minerID){
   // console.log(`Calculating sum of upper limit for minerID ${minerID} from ${start} to ${end}`)
 
   // Sealing request
-  requestString = `https://api.filecoin.energy/models/export?end=${end}&id=4&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  requestString = `https://api.filecoin.energy/models/export?end=${end}&id=5&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  console.log(requestString)
   var sealing_records = await axios.get(requestString)
   sealing_records_data = sealing_records.data.data
   // console.log(`Array length from sealing request: ${sealing_records_data.length}`)
@@ -61,7 +62,7 @@ async function get_total_energy_data(start, end, minerID){
   // console.log(totalSealed_GiB)
 
   // Storage request
-  requestString = `https://api.filecoin.energy/models/export?end=${end}&id=3&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  requestString = `https://api.filecoin.energy/models/export?end=${end}&id=6&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
   var storage_records = await axios.get(requestString)
   storage_records_data = storage_records.data.data
   // console.log(storage_records_data)

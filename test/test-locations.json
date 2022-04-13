@@ -1,0 +1,16 @@
+{
+  "date": "2022-03-17T20:19:49.361Z",
+  "epoch": 1592429,
+  "providerLocations": [
+    {
+      "provider": "f01051178",
+      "region": "CN-HA",
+      "long": 113.4868,
+      "lat": 34.157185,
+      "numLocations": 1,
+      "country": "CN",
+      "city": "Henan",
+      "delegate": "f01154827"
+    }
+  ]
+}

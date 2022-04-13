@@ -42,6 +42,9 @@ const json2csvparse = require('json2csv')
 
 async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_nodes, new_beneficiaries, redemptions, orderFolder){
 
+  console.log(supplyRecord)
+
+
   // To match this supply, walk through SPs from the locations file.
   SP_idx = 0
   while ((supply_remaining>0) && (SP_idx < locations.length)){

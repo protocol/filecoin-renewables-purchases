@@ -1,0 +1,2 @@
+agreement_line,contract,batch,country,region,type,technology,start,end,volume_MWh
+1,0x2248a8E53c8cf533AEEf2369FfF9Dc8C036c8900,0,CN,,GO,"Wind, Solar",2020-08-01,2022-04-08,1000
