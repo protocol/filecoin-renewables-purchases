@@ -1,3 +1,2 @@
 "ID","name","country","location","redemption_account","volume_required","start_date","end_date","redemption_purpose","supply_remaining","totalSealed_GiB","total_time_hours","initial_capacity_GiB","final_capacity_GiB","time_average_capacity_GiB","total_energy_upper_MWh"
-"","f01152","CN","CN-BJ",,146,"2020-08-01","2022-04-08","Renewable energy purchase for node on the Filecoin network with minerID f01152",854,276576,14783.991666666667,"32","276576",261903.14641907148,97.09085236083737
-"","f01155","CN","CN-SH",,854,"2020-08-01","2022-04-08","Renewable energy purchase for node on the Filecoin network with minerID f01155",0,3629536,14783.991666666667,"32","3629536",3072973.7031282163,1183.800600100327
+"","f01051178","CN","CN-HA",,1000,"2021-06-01","2021-12-31","Renewable energy purchase for node on the Filecoin network with minerID f01051178",0,5294720,5135.991666666667,"2048","5294720",2992567.9038809408,872.4468866173152

@@ -25,6 +25,23 @@ function sum_total_energy_upper(data){
   return totalEnergy
 }
 
+async function get_previous_renewables(minerID){
+
+  toReturn = {}
+
+  // Find purchased renewable energy
+  requestString = `https://proofs-api.zerolabs.green/api/partners/filecoin/nodes/${minerID}/transactions`
+  var purchases = await axios.get(requestString)
+  toReturn.purchases = purchases.data
+
+  // Find open contracts
+  requestString = `https://proofs-api.zerolabs.green/api/partners/filecoin/nodes/${minerID}/contracts`
+  var contracts = await axios.get(requestString)
+  toReturn.contracts = contracts.data
+
+  return toReturn
+}
+
 // Date format example: '2020-07-01'
 async function get_total_energy_data(start, end, minerID){
 
@@ -171,4 +188,4 @@ async function get_total_energy_data(start, end, minerID){
   return to_return
 }
 
-module.exports = {get_total_energy_data}
+module.exports = {get_total_energy_data, get_previous_renewables}

@@ -14,6 +14,12 @@ const json2csvparse = require('json2csv')
   // Subtract existing renewable energy (don't just ignore if in ZL)
   // For US and Chinese providers, build more granular matching than country
 
+  // Locations priority now:
+    // Demo for mona (find NERC for US)
+    // Estuary (find NERC for US)
+    // Jim's non-synth
+    // Synthetic
+
 
 // New Beneficiaries Output:Name, Country Name, Location
   // Name: minerID
@@ -40,10 +46,92 @@ const json2csvparse = require('json2csv')
     // allocation = ceil(max allocation, remaining supply)
     // Add supply and subtract from allocation
 
+// See whether two date ranges, with all dates written as strings, partially overlap
+// For each date range, start must be before end
+function date_ranges_partially_overlap(r1start, r1end, r2start, r2end){
+
+  // console.log("")
+  // console.log(`${r1start} - ${r1end} and ${r2start} - ${r2end}`)
+
+  // Assume true, test for cases where partial overlap is false
+  partialOverlap = true
+
+  // If an end date does not have a full timestamp (ie if it is in the form
+  // 2021-07-31 instead of 2021-07-31T23:59:59.999Z), we need to append the timestamp
+  if (! r1end.includes(':')){
+    r1end += 'T23:59:59.999Z'
+  }
+  if (! r2end.includes(':')){
+    r2end += 'T23:59:59.999Z'
+  }
+
+  // Convert dates into timestamps so we can compare them
+  r1start_timestamp = new Date(r1start).getTime()
+  r1end_timestamp = new Date(r1end).getTime()
+  r2start_timestamp = new Date(r2start).getTime()
+  r2end_timestamp = new Date(r2end).getTime()
+
+  // Test that the dates are in the correct order
+  if ( (r1start_timestamp > r1end_timestamp) || (r2start_timestamp > r2end_timestamp)){
+    throw new Error('Bad date order')
+  }
+
+  // First false case: all of r1 is after r2
+  if( (r2start_timestamp <= r1start_timestamp) && (r2end_timestamp <= r1start_timestamp)){
+    partialOverlap = false
+  }
+
+  // Second false case: r1 is within r2
+  if( (r2start_timestamp <= r1start_timestamp) && (r1end_timestamp <= r2end_timestamp)){
+    partialOverlap = false
+  }
+
+  // Third false case: r2 is within r1
+  if( (r1start_timestamp <= r2start_timestamp) && (r2end_timestamp <= r1end_timestamp)){
+    partialOverlap = false
+  }
+
+  // Fourth false case: all of r1 is before r2
+  if( (r1end_timestamp <= r2start_timestamp) && (r1end_timestamp <= r2end_timestamp)){
+    partialOverlap = false
+  }
+
+  return partialOverlap
+
+}
+
+// See whether date range r2 is entirely contained in r1
+function r2_in_r1(r1start, r1end, r2start, r2end){
+
+  // If an end date does not have a full timestamp (ie if it is in the form
+  // 2021-07-31 instead of 2021-07-31T23:59:59.999Z), we need to append the timestamp
+  if (! r1end.includes(':')){
+    r1end += 'T23:59:59.999Z'
+  }
+  if (! r2end.includes(':')){
+    r2end += 'T23:59:59.999Z'
+  }
+
+  // Convert dates into timestamps so we can compare them
+  r1start_timestamp = new Date(r1start).getTime()
+  r1end_timestamp = new Date(r1end).getTime()
+  r2start_timestamp = new Date(r2start).getTime()
+  r2end_timestamp = new Date(r2end).getTime()
+
+  // Test that the dates are in the correct order
+  if ( (r1start_timestamp > r1end_timestamp) || (r2start_timestamp > r2end_timestamp)){
+    throw new Error('Bad date order')
+  }
+
+  // Make the comparison
+  if ( (r1start <= r2start) && (r2end <= r1end)){return true} else{
+    return false
+  }
+}
+
 async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_nodes, new_beneficiaries, redemptions, orderFolder){
 
   console.log(supplyRecord)
-
 
   // To match this supply, walk through SPs from the locations file.
   SP_idx = 0
@@ -65,33 +153,52 @@ async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_no
     // There are two situations where we might skip
     skip_this_minerID = false
 
-    // Account for previous renewables purchases, by skipping if this minerID is in the ZL interface
-    // (In the future, subtract the amount)
+    // Find previous renewable energy records
+    prev_renewables = {"purchases":{}, "contracts":{}}
+    prev_renewable_summary = []
     ZL_match = ZL_nodes.data.filter(x => x.id == locations[SP_idx].miner)
     if (ZL_match.length > 0){
-      console.log('Skipping on account of previous renewable energy purchases')
-      skip_this_minerID = true
+
+      prev_renewables = await getEnergy.get_previous_renewables(locations[SP_idx].miner)
+
+      // Summarize purchase records for existing allocations
+      for (idx=0; idx<prev_renewables.purchases.transactions.length; idx++){
+        // console.log(prev_renewables.purchases.transactions[idx])
+        prev_renewable_summary.push({
+          "volume_MWh": prev_renewables.purchases.transactions[idx].generation.energyWh/1e6,
+          "start_date": prev_renewables.purchases.transactions[idx].reportingStart,
+          "end_date": prev_renewables.purchases.transactions[idx].reportingEnd
+        })
+      }
+
+      // Summarize contract records for existing allocations
+      for (idx=0; idx<prev_renewables.contracts.contracts.length; idx++){
+        // console.log(prev_renewables.contracts.contracts[idx])
+        prev_renewable_summary.push({
+          "volume_MWh": prev_renewables.contracts.contracts[idx].openVolume/1e6,
+          "start_date": prev_renewables.contracts.contracts[idx].reportingStart,
+          "end_date": prev_renewables.contracts.contracts[idx].reportingEnd
+        })
+      }
+
     }
+
+    // console.log(prev_renewable_summary)
 
 
     // Have we already allocated for this minerID in this date range (ie if supply dates overlap)?
     prevAllocation_thisMinerID = redemptions.filter(x => x.name == locations[SP_idx].miner)
+
+    // Combine previous renewables purchases with previous allocation
+    prevAllocation_thisMinerID = prevAllocation_thisMinerID.concat(prev_renewable_summary)
+
+    // console.log(prevAllocation_thisMinerID)
+
+    // Check whether a previous allocation partially overlaps. If so, skip
     for (j=0; j<prevAllocation_thisMinerID.length; j++){
-
-      // Convert dates into timestamps so we can compare them
-      vintage_start_timestamp = new Date(supplyRecord.start).getTime()
-      vintage_end_timestamp = new Date(supplyRecord.end).getTime()
-      previous_start_timestamp = new Date(prevAllocation_thisMinerID[j].start_date).getTime()
-      previous_end_timestamp = new Date(prevAllocation_thisMinerID[j].end_date).getTime()
-
-      // This allocation overlaps if either of the supply start and end times
-      // falls within the previous time range
-      if ((
-        (previous_start_timestamp <= vintage_start_timestamp)&&(vintage_start_timestamp < previous_end_timestamp))
-      ||(
-        (previous_start_timestamp < vintage_end_timestamp)&&(vintage_end_timestamp<=previous_end_timestamp)
-      )){
-        console.log('Skipping on account of overlap')
+      if (date_ranges_partially_overlap(supplyRecord.start, supplyRecord.end, prevAllocation_thisMinerID[j].start_date, prevAllocation_thisMinerID[j].end_date)){
+        console.log('Skipping on account of overlap with record:')
+        console.log(prevAllocation_thisMinerID[j])
         skip_this_minerID = true
       }
     }
@@ -102,8 +209,7 @@ async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_no
       continue
     }
 
-
-    // Find the amount of energy used by this SP
+    // Find the amount of energy used by this SP over the supply time period
     energy_use = null
     try{
       energy_use = await getEnergy.get_total_energy_data(supplyRecord.start, supplyRecord.end, locations[SP_idx].miner)
@@ -116,9 +222,23 @@ async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_no
     console.log(energy_use)
     margin = 1.5 // Overbuying EACs
     max_allocation = Math.ceil(energy_use.total_energy_upper_MWh * margin)
-    console.log(max_allocation)
+    console.log(`Max allocation from energy use: ${max_allocation} MWh`)
 
-    // Determine number of RECs to allocate (before adjusting for existing allocations below)
+    // If a previous allocation is entirely within this one, adjust max_allocation down
+    prevWithin = prevAllocation_thisMinerID.filter(x => r2_in_r1(supplyRecord.start, supplyRecord.end, x.start_date, x.end_date))
+    console.log("Found records within this time range:")
+    console.log(prevWithin)
+    sumWithin = prevWithin.reduce((prev, elem) => prev + elem.volume_MWh, 0)
+    max_allocation = Math.max((max_allocation-sumWithin), 0)
+    console.log(`Adjusted max allocation: ${max_allocation} MWh`)
+
+    // If this is entirely within a previous allocation and that time range already has
+    // enough renewable energy, adjust max_allocation down
+    insidePrev = prevAllocation_thisMinerID.filter(x => r2_in_r1(x.start_date, x.end_date, supplyRecord.start, supplyRecord.end))
+    console.log("Found supply time range entirely within record:")
+    console.log(insidePrev)
+
+    // Limit actual allocation by available supply
     allocation = Math.min(max_allocation, supply_remaining)
 
     // Advance if allocation is zero
@@ -220,7 +340,6 @@ async function new_EAC_redemption_order(orderFolder, locationFilename, supplyFil
 
   // Walk through supply, line by line, to allocate to SPs
   for (i=0; i<supply.length; i++){
-    console.log(supply[i])
 
     supplyRecord = supply[i]
 
