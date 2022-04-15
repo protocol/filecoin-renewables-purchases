@@ -237,6 +237,21 @@ async function match_to_SP_list(supplyRecord, supply_remaining, locations, ZL_no
     insidePrev = prevAllocation_thisMinerID.filter(x => r2_in_r1(x.start_date, x.end_date, supplyRecord.start, supplyRecord.end))
     console.log("Found supply time range entirely within record:")
     console.log(insidePrev)
+    for (k=0; k<insidePrev.length; k++){
+
+      // Find the energy needed for this period
+      energy_use_macro = null
+      try{
+        energy_use_macro = await getEnergy.get_total_energy_data(insidePrev[k].start_date, insidePrev[k].end_date, locations[SP_idx].miner)
+      } catch {
+        console.log("Couldn't find energy use (API error?)")
+        SP_idx ++
+        continue
+      }
+      console.log(energy_use_macro)
+      energy_use_macro_with_margin = energy_use_macro.total_energy_upper_MWh*margin
+      console.log(energy_use_macro_with_margin)
+    }
 
     // Limit actual allocation by available supply
     allocation = Math.min(max_allocation, supply_remaining)
