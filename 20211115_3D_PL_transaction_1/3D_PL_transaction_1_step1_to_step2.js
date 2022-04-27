@@ -106,6 +106,8 @@ country_region_key["ASCC"] = {"country":"US", "region":"ASCC"}
 
 // console.log(country_region_key)
 
+step3_out = []
+
 step2_out = order.map((elem, idx) => {
 
   productType = ''
@@ -148,7 +150,7 @@ step2_out = order.map((elem, idx) => {
     }
   }
 
-  return {
+  step2_out_elem = {
     "tranche_id": `20211115_3D_PL_transaction_1_line_${idx+1}`,
     "productType":productType,
     "energySources":energySources,
@@ -162,7 +164,7 @@ step2_out = order.map((elem, idx) => {
     "region":location.region,
     "volume_MWh":elem[' Quantity '],
     "step2_order_complete":1,
-    "step3_match_complete":0,
+    "step3_match_complete":1,
     "step4_contract_complete":0,
     "step5_attestation_complete":0,
     "step6_IPLDrecord_complete":0,
@@ -170,8 +172,45 @@ step2_out = order.map((elem, idx) => {
     "step8_volta_complete":0,
     "step9_finalRecord_complete":0
   }
+
+
+
+  step3_out_elem = {
+    "tranche_id": `20211115_3D_PL_transaction_1_line_${idx+1}`,
+    "minerID":elem['Retirement Notes'].split('Filecoin ID:: ')[1],
+    "productType":productType,
+    "energySources":energySources,
+    "contractDate":contractDate,
+    "deliveryDate":deliveryDate,
+    "reportingStart":reportingStart,
+    "reportingEnd":reportingEnd,
+    "sellerName":"3Degrees Group, Inc",
+    "sellerAddress":"235 Montgomery St Suite 320 CA94104 San Francisco US",
+    "country":location.country,
+    "region":location.region,
+    "volume_MWh":elem[' Quantity '],
+    "smart_contract_address":'',
+    "batchID":"",
+    "network":"246",
+    "beneficiary":elem['Retirement Notes'],
+    "redemption_purpose":"",
+    "attestation_file":"",
+    "ZL_contract_id":"",
+    "step2_order_complete":1,
+    "step3_match_complete":1,
+    "step4_contract_complete":0,
+    "step5_attestation_complete":0,
+    "step6_IPLDrecord_complete":0,
+    "step7_transaction_complete":0,
+    "step8_volta_complete":0,
+    "step9_finalRecord_complete":0
+  }
+  step3_out.push(step3_out_elem)
+
+  return step2_out_elem
 })
 
 // console.log(step2_out)
 
 fs.writeFileSync("20211115_3D_PL_transaction_1_step2_order.csv", json2csvparse.parse(step2_out));
+fs.writeFileSync("20211115_3D_PL_transaction_1_step3_match.csv", json2csvparse.parse(step3_out));
