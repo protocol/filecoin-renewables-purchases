@@ -1,0 +1,8 @@
+reportingStart,Time_region,reportingStartTimezoneOffset,reportingEnd,reportingEndTimezoneOffset,sellerName,sellerAddress,country,region,volume_Wh,generatorName,productType,energySource,generationStart,generationStartTimezoneOffset,generationEnd,generationEndTimezoneOffset
+2020-12-01,ET,,2020-12-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,5,Zurich CGS,GREEN-E,WIND,2020-12-01,,2020-12-31,
+2021-01-01,ET,,2021-01-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,5,Zurich CGS,GREEN-E,WIND,2021-01-01,,2021-01-31,
+2021-02-01,CT,,2021-02-28,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,6,St. Joseph Wind Farm,GREEN-E,WIND,2021-02-01,,2021-02-28,
+2021-03-01,CT,,2021-03-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,6,St. Joseph Wind Farm,GREEN-E,WIND,2021-03-01,,2021-03-31,
+2021-04-01,ET,,2021-04-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,5,Hermanville Wind Farm,GREEN-E,WIND,2021-04-01,,2021-04-30,
+2021-05-01,ET,,2021-05-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,4,Hermanville Wind Farm,GREEN-E,WIND,2021-05-01,,2021-05-31,
+2021-06-01,ET,,2021-06-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,CA,,3,Hermanville Wind Farm,GREEN-E,WIND,2021-06-01,,2021-06-30,

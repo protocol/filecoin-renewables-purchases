@@ -1,0 +1,6 @@
+reportingStart,Time_region,reportingStartTimezoneOffset,reportingEnd,reportingEndTimezoneOffset,sellerName,sellerAddress,country,region,volume_Wh,generatorName,productType,energySource,generationStart,generationStartTimezoneOffset,generationEnd,generationEndTimezoneOffset
+2020-11-01,ET,,2020-11-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,NPCC,6,Cohocton Wind Project (Candigu),GREEN-E,WIND,2020-11-01,,2020-11-30,
+2020-11-01,ET,,2020-11-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,NPCC,1,STEEL - STEEL___WIND,GREEN-E,WIND,2020-11-01,,2020-11-30,
+2021-04-01,ET,,2021-04-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,NPCC,2,Caribou Solar LLC,GREEN-E,SOLAR,2021-04-01,,2021-04-30,
+2021-05-01,ET,,2021-05-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,NPCC,9,Caribou Solar LLC,GREEN-E,SOLAR,2021-05-01,,2021-05-31,
+2021-06-01,ET,,2021-06-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,NPCC,10,Caribou Solar LLC,GREEN-E,SOLAR,2021-06-01,,2021-06-30,
