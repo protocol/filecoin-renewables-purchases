@@ -1,0 +1,6 @@
+attestation_id,smart_contract_address,batchID,network,beneficiary,ZL_contract_id,attestation_file
+20210831_EW_PL_transaction_1_attestation_1,,,246,,,20210831_delivery/US_GreenE_622MWh_2021Q1.pdf
+20210831_EW_PL_transaction_1_attestation_2,,,246,,,20210831_delivery/US_GreenE_622MWh_2021Q1.pdf/NO_GO_98MWh_2020_2021.pdf
+20210831_EW_PL_transaction_1_attestation_3,,,246,,,20210831_delivery/US_GreenE_622MWh_2021Q1.pdf/NO_GO_93MWh_2021.pdf
+20210831_EW_PL_transaction_1_attestation_4,,,246,,,20210831_delivery/US_GreenE_622MWh_2021Q1.pdf/NO_GO_29MWh_2021.pdf
+20210831_EW_PL_transaction_1_attestation_5,,,246,,,20210831_delivery/US_GreenE_622MWh_2021Q1.pdf/CN_IREC_168MWh_2021.pdf
