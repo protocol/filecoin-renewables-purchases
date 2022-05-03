@@ -1,4 +1,4 @@
-certificate,tranche,volume,minerID
+certificate,tranche,volume_MWh,minerID
 US_GreenE_622MWh_2021Q1,20210831_EW_PL_transaction_1_contract_1,1,f01045784
 US_GreenE_622MWh_2021Q1,20210831_EW_PL_transaction_1_contract_1,1,f0728347
 US_GreenE_622MWh_2021Q1,20210831_EW_PL_transaction_1_contract_1,18,f0678914
