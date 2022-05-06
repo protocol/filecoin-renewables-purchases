@@ -212,5 +212,5 @@ step2_out = order.map((elem, idx) => {
 
 // console.log(step2_out)
 
-fs.writeFileSync("20211115_3D_PL_transaction_1_step2_order.csv", json2csvparse.parse(step2_out));
+fs.writeFileSync("20211115_3D_PL_transaction_1_step2_orderSupply.csv", json2csvparse.parse(step2_out));
 fs.writeFileSync("20211115_3D_PL_transaction_1_step3_match.csv", json2csvparse.parse(step3_out));

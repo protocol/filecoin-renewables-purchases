@@ -46,4 +46,4 @@ step2 = input.map((elem, idx) => {
 
 console.log(step2)
 
-fs.writeFileSync("20220207_SP_PL_transaction_1_step_2_orderSupply.csv", json2csvparse.parse(step2));
+fs.writeFileSync("20220207_SP_PL_transaction_1_step2_orderSupply.csv", json2csvparse.parse(step2));
