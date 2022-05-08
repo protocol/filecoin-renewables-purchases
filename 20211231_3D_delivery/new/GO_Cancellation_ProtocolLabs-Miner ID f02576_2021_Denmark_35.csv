@@ -1,0 +1,7 @@
+reportingStart,Time_region,reportingStartTimezoneOffset,reportingEnd,reportingEndTimezoneOffset,sellerName,sellerAddress,country,region,volume_Wh,generatorName,productType,energySource,generationStart,generationStartTimezoneOffset,generationEnd,generationEndTimezoneOffset
+2021-01-01,DK,,2021-01-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,16,"2730 Herlev, DK",GO,WIND,2021-01-01,,2021-01-31,
+2021-02-01,DK,,2021-02-28,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,3,"2730 Herlev, DK",GO,WIND,2021-02-01,,2021-02-28,
+2021-03-01,DK,,2021-03-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,5,"2730 Herlev, DK",GO,WIND,2021-03-01,,2021-03-31,
+2021-04-01,DK,,2021-04-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,4,"2730 Herlev, DK",GO,WIND,2021-04-01,,2021-04-30,
+2021-05-01,DK,,2021-05-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,3,"2730 Herlev, DK",GO,WIND,2021-05-01,,2021-05-31,
+2021-06-01,DK,,2021-06-30,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,4,"2730 Herlev, DK",GO,WIND,2021-06-01,,2021-06-30,

@@ -1,0 +1,2 @@
+reportingStart,Time_region,reportingStartTimezoneOffset,reportingEnd,reportingEndTimezoneOffset,sellerName,sellerAddress,country,region,volume_Wh,generatorName,productType,energySource,generationStart,generationStartTimezoneOffset,generationEnd,generationEndTimezoneOffset
+2021-01-01,DK,,2021-12-31,,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,DK,,3,,GO,HYDRO,2021-07-01,,2021-07-31,
