@@ -31,7 +31,6 @@ step2 = input.map((elem, idx) => {
     "country": elem.country,
     "region": elem.region,
     "volume_MWh": elem.volume_MWh,
-    "step2_order_complete": elem.step2_order_complete,
     "step3_match_complete": elem.step3_match_complete,
     "step4_ZL_contract_complete": elem.step4_ZL_contract_complete,
     "step5_redemption_data_complete": elem.step5_redemption_data_complete,

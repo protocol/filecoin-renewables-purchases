@@ -18,8 +18,12 @@ const order = parse(
 product_key = {
   "I-REC":"IREC",
   "GO -":"GO",
-  "REC - Green-e":"GREEN-E",
+  "REC - Green-e":"REC",
   "LGC - ":"LGC"
+}
+
+label_key = {
+  "REC - Green-e":"GREEN_E_ENERGY"
 }
 
 source_key = {
@@ -115,6 +119,11 @@ step2_out = order.map((elem, idx) => {
     if(elem['Environmental Product'].includes(key)){productType = product_key[key]}
   }
 
+  label = ''
+  for (const key in label_key){
+    if(elem['Environmental Product'].includes(key)){label = label_key[key]}
+  }
+
   energySources = ''
   for (const key in source_key){
     if(elem['Environmental Product'].includes(key)){energySources = source_key[key]}
@@ -151,8 +160,9 @@ step2_out = order.map((elem, idx) => {
   }
 
   step2_out_elem = {
-    "tranche_id": `20211115_3D_PL_transaction_1_line_${idx+1}`,
+    "contract_id": `20211115_3D_PL_transaction_1_contract_${idx+1}`,
     "productType":productType,
+    "label":label,
     "energySources":energySources,
     "contractDate":contractDate,
     "deliveryDate":deliveryDate,
@@ -163,47 +173,30 @@ step2_out = order.map((elem, idx) => {
     "country":location.country,
     "region":location.region,
     "volume_MWh":elem[' Quantity '],
-    "step2_order_complete":1,
     "step3_match_complete":1,
-    "step4_contract_complete":0,
-    "step5_attestation_complete":0,
-    "step6_IPLDrecord_complete":0,
-    "step7_transaction_complete":0,
-    "step8_volta_complete":0,
-    "step9_finalRecord_complete":0
+    "step4_ZL_contract_complete":0,
+    "step5_redemption_data_complete":0,
+    "step6_attestation_info_complete":0,
+    "step7_certificates_matched_to_supply":0,
+    "step8_IPLDrecord_complete":0,
+    "step9_transaction_complete":0,
+    "step10_volta_complete":0,
+    "step11_finalRecord_complete":0
   }
 
-
-
   step3_out_elem = {
-    "tranche_id": `20211115_3D_PL_transaction_1_line_${idx+1}`,
+    "contract_id": `20211115_3D_PL_transaction_1_contract_${idx+1}`,
     "minerID":elem['Retirement Notes'].split('Filecoin ID:: ')[1],
-    "productType":productType,
-    "energySources":energySources,
-    "contractDate":contractDate,
-    "deliveryDate":deliveryDate,
-    "reportingStart":reportingStart,
-    "reportingEnd":reportingEnd,
-    "sellerName":"3Degrees Group, Inc",
-    "sellerAddress":"235 Montgomery St Suite 320 CA94104 San Francisco US",
-    "country":location.country,
-    "region":location.region,
     "volume_MWh":elem[' Quantity '],
-    "smart_contract_address":'',
-    "batchID":"",
-    "network":"246",
-    "beneficiary":elem['Retirement Notes'],
-    "redemption_purpose":"",
-    "attestation_file":"",
-    "ZL_contract_id":"",
-    "step2_order_complete":1,
-    "step3_match_complete":1,
-    "step4_contract_complete":0,
-    "step5_attestation_complete":0,
-    "step6_IPLDrecord_complete":0,
-    "step7_transaction_complete":0,
-    "step8_volta_complete":0,
-    "step9_finalRecord_complete":0
+    "defaulted":0,
+    "step4_ZL_contract_complete":0,
+    "step5_redemption_data_complete":0,
+    "step6_attestation_info_complete":0,
+    "step7_certificates_matched_to_supply":0,
+    "step8_IPLDrecord_complete":0,
+    "step9_transaction_complete":0,
+    "step10_volta_complete":0,
+    "step11_finalRecord_complete":0
   }
   step3_out.push(step3_out_elem)
 
