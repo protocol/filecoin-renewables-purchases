@@ -185,6 +185,8 @@ step2_out = order.map((elem, idx) => {
   }
 
   step3_out_elem = {
+    "allocation_id":`20210831_EW_PL_transaction_1_allocation_${idx+1}`,
+    "UUID":"",
     "contract_id": `20211115_3D_PL_transaction_1_contract_${idx+1}`,
     "minerID":elem['Retirement Notes'].split('Filecoin ID:: ')[1],
     "volume_MWh":elem[' Quantity '],
