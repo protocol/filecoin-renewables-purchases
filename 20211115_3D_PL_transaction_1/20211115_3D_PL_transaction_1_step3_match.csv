@@ -1,32 +1,32 @@
 "allocation_id","UUID","contract_id","minerID","volume_MWh","defaulted","step4_ZL_contract_complete","step5_redemption_data_complete","step6_attestation_info_complete","step7_certificates_matched_to_supply","step8_IPLDrecord_complete","step9_transaction_complete","step10_volta_complete","step11_finalRecord_complete"
-"20210831_EW_PL_transaction_1_allocation_1","3511aee8-c25c-48df-b930-719e8dfe2cea","20211115_3D_PL_transaction_1_contract_1","f0127595","            1,738 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_2","92fa928e-43cd-4eb5-92df-d7114e0c4a1c","20211115_3D_PL_transaction_1_contract_2","f0127595","            3,373 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_3","04f0738c-0ae3-40e3-bf80-e5401ce72559","20211115_3D_PL_transaction_1_contract_3","f0127595","            1,547 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_4","42c88b3e-e02f-4cf6-a69e-0e975091f313","20211115_3D_PL_transaction_1_contract_4","f0127595","            1,497 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_5","60f77862-0bea-41f7-80ce-3ea218f5a36f","20211115_3D_PL_transaction_1_contract_5","f0688165","            3,066 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_6","a2ef4c02-5f79-4da2-8c36-45acdcfb1939","20211115_3D_PL_transaction_1_contract_6","f0127595","            4,685 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_7","4057aa0c-66a5-4bcf-9a51-4f2ff671e837","20211115_3D_PL_transaction_1_contract_7","f0128559","            1,070 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_8","f8f99a1d-8fa4-4ffe-bff6-dcdf8b28ccc7","20211115_3D_PL_transaction_1_contract_8","f0128559","            1,070 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_9","c7d6a3f0-88b5-4c6b-babb-d35354384414","20211115_3D_PL_transaction_1_contract_9","f0128559","            1,070 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_10","a5c176a0-1ccf-4b43-8451-aaa0bb542bd1","20211115_3D_PL_transaction_1_contract_10","f0688165","            6,290 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_11","1530ee84-07d1-4985-9b69-a6601e0299e4","20211115_3D_PL_transaction_1_contract_11","f0128559","            1,035 ",0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_1","3511aee8-c25c-48df-b930-719e8dfe2cea","20211115_3D_PL_transaction_1_contract_1","f0127595",1738,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_2","92fa928e-43cd-4eb5-92df-d7114e0c4a1c","20211115_3D_PL_transaction_1_contract_2","f0127595",3373,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_3","04f0738c-0ae3-40e3-bf80-e5401ce72559","20211115_3D_PL_transaction_1_contract_3","f0127595",1547,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_4","42c88b3e-e02f-4cf6-a69e-0e975091f313","20211115_3D_PL_transaction_1_contract_4","f0127595",1497,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_5","60f77862-0bea-41f7-80ce-3ea218f5a36f","20211115_3D_PL_transaction_1_contract_5","f0688165",3066,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_6","a2ef4c02-5f79-4da2-8c36-45acdcfb1939","20211115_3D_PL_transaction_1_contract_6","f0127595",4685,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_7","4057aa0c-66a5-4bcf-9a51-4f2ff671e837","20211115_3D_PL_transaction_1_contract_7","f0128559",1070,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_8","f8f99a1d-8fa4-4ffe-bff6-dcdf8b28ccc7","20211115_3D_PL_transaction_1_contract_8","f0128559",1070,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_9","c7d6a3f0-88b5-4c6b-babb-d35354384414","20211115_3D_PL_transaction_1_contract_9","f0128559",1070,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_10","a5c176a0-1ccf-4b43-8451-aaa0bb542bd1","20211115_3D_PL_transaction_1_contract_10","f0688165",6290,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_11","1530ee84-07d1-4985-9b69-a6601e0299e4","20211115_3D_PL_transaction_1_contract_11","f0128559",1035,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_12","24284542-d5fb-46ab-8418-d4fe9dfbf2c8","20211115_3D_PL_transaction_1_contract_12","f02770",952,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_13","32259827-f4c5-46e1-b093-e4cbdc909515","20211115_3D_PL_transaction_1_contract_13","f02770",952,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_14","b6858387-e6b0-443c-991c-2481ad917011","20211115_3D_PL_transaction_1_contract_14","f02770",952,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_15","516e4061-1665-4b4c-a5d7-d8cf8642ea96","20211115_3D_PL_transaction_1_contract_15","f02770",952,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_16","5c506f02-a016-4e8d-bb3a-58f34e0888cf","20211115_3D_PL_transaction_1_contract_16","f02770",950,0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_17","c009632f-d13a-402f-bf04-86d23fa57109","20211115_3D_PL_transaction_1_contract_17","f02770","            1,590 ",0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_17","c009632f-d13a-402f-bf04-86d23fa57109","20211115_3D_PL_transaction_1_contract_17","f02770",1590,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_18","e05afc32-c0c7-4179-b7d7-cc2b7a847e62","20211115_3D_PL_transaction_1_contract_18","f02770",921,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_19","45a3c826-14a4-4822-9cc1-3ff9529607c9","20211115_3D_PL_transaction_1_contract_19","f02770",921,0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_20","11c87249-423d-463b-8c00-7cc9d1fa103d","20211115_3D_PL_transaction_1_contract_20","f0127595","            5,946 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_21","a9d0dee3-0507-44d5-a297-63a1b4f96323","20211115_3D_PL_transaction_1_contract_21","f0128559","            3,658 ",0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_20","11c87249-423d-463b-8c00-7cc9d1fa103d","20211115_3D_PL_transaction_1_contract_20","f0127595",5946,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_21","a9d0dee3-0507-44d5-a297-63a1b4f96323","20211115_3D_PL_transaction_1_contract_21","f0128559",3658,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_22","67aeebb2-ef99-40d9-977a-a6806215adb6","20211115_3D_PL_transaction_1_contract_22","f02770",860,0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_23","21b0e20f-08f9-44b0-9a6f-d3c9289e720e","20211115_3D_PL_transaction_1_contract_23","f02770","            3,455 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_24","edffe919-bb7b-4f03-8a0a-1f3571d4a357","20211115_3D_PL_transaction_1_contract_24","f0128559","            3,752 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_25","e9363a71-62bd-4049-a6b6-54f195949bcf","20211115_3D_PL_transaction_1_contract_25","f0688165","            3,545 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_26","9e79bb58-56f2-4f13-bb84-3aacee431957","20211115_3D_PL_transaction_1_contract_26","f02770","            3,651 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_27","13e40454-e563-4070-bab2-81a5877a54fd","20211115_3D_PL_transaction_1_contract_27","f0127595","            4,497 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_28","9957447a-7d04-45be-a9c0-6e6d1e40f7f2","20211115_3D_PL_transaction_1_contract_28","f0688165","            2,926 ",0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_23","21b0e20f-08f9-44b0-9a6f-d3c9289e720e","20211115_3D_PL_transaction_1_contract_23","f02770",3455,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_24","edffe919-bb7b-4f03-8a0a-1f3571d4a357","20211115_3D_PL_transaction_1_contract_24","f0128559",3752,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_25","e9363a71-62bd-4049-a6b6-54f195949bcf","20211115_3D_PL_transaction_1_contract_25","f0688165",3545,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_26","9e79bb58-56f2-4f13-bb84-3aacee431957","20211115_3D_PL_transaction_1_contract_26","f02770",3651,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_27","13e40454-e563-4070-bab2-81a5877a54fd","20211115_3D_PL_transaction_1_contract_27","f0127595",4497,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_28","9957447a-7d04-45be-a9c0-6e6d1e40f7f2","20211115_3D_PL_transaction_1_contract_28","f0688165",2926,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_29","12c06ebf-e6f5-4eba-82e0-809046c44a2e","20211115_3D_PL_transaction_1_contract_29","f02775",268,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_30","606a5406-5026-4ea8-97aa-0ca1b62f2a1d","20211115_3D_PL_transaction_1_contract_30","f02775",265,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_31","606a5406-5026-4ea8-97aa-0ca1b62f2a1d","20211115_3D_PL_transaction_1_contract_31","f02775",265,0,0,0,0,0,0,0,0,0
@@ -34,16 +34,16 @@
 "20210831_EW_PL_transaction_1_allocation_33","697467b2-6428-481a-b032-989fdbce1d2c","20211115_3D_PL_transaction_1_contract_33","f02775",265,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_34","1eb088d3-1b66-4e1e-be49-24681d560257","20211115_3D_PL_transaction_1_contract_34","f02775",265,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_35","47a4e267-ffc3-470a-a520-03103db1b98d","20211115_3D_PL_transaction_1_contract_35","f02775",265,0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_36","c64b39b9-1375-4b4b-a3b1-a19715d106d6","20211115_3D_PL_transaction_1_contract_36","f0128559","            2,968 ",0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_36","c64b39b9-1375-4b4b-a3b1-a19715d106d6","20211115_3D_PL_transaction_1_contract_36","f0128559",2968,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_37","7d96a758-9594-46be-bbed-69abc74bb1d5","20211115_3D_PL_transaction_1_contract_37","f02775",257,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_38","9e2f056f-c74c-40fa-b92e-b3ec72d86fe0","20211115_3D_PL_transaction_1_contract_38","f02775",257,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_39","761e22e5-f76f-486b-9565-6fdbab2ef516","20211115_3D_PL_transaction_1_contract_39","f02775",257,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_40","8eb989d1-0bf6-48ed-9257-9e91a43a18bc","20211115_3D_PL_transaction_1_contract_40","f02775",240,0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_41","ee940df1-3515-441a-8265-b4d70f2bd2e7","20211115_3D_PL_transaction_1_contract_41","f02775","            2,492 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_42","4e4504dd-2871-418b-b965-f29fea48c61d","20211115_3D_PL_transaction_1_contract_42","f02770","            1,985 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_43","e9c86d5e-74e1-444f-9486-7303504e30c9","20211115_3D_PL_transaction_1_contract_43","f0127595","            1,958 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_44","d7799315-96d6-4392-a407-b0b14df5b54a","20211115_3D_PL_transaction_1_contract_44","f0688165","            1,809 ",0,0,0,0,0,0,0,0,0
-"20210831_EW_PL_transaction_1_allocation_45","f97eeba7-518f-4fd2-bff6-2fee3068f4c8","20211115_3D_PL_transaction_1_contract_45","f0128559","            1,356 ",0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_41","ee940df1-3515-441a-8265-b4d70f2bd2e7","20211115_3D_PL_transaction_1_contract_41","f02775",2492,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_42","4e4504dd-2871-418b-b965-f29fea48c61d","20211115_3D_PL_transaction_1_contract_42","f02770",1985,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_43","e9c86d5e-74e1-444f-9486-7303504e30c9","20211115_3D_PL_transaction_1_contract_43","f0127595",1958,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_44","d7799315-96d6-4392-a407-b0b14df5b54a","20211115_3D_PL_transaction_1_contract_44","f0688165",1809,0,0,0,0,0,0,0,0,0
+"20210831_EW_PL_transaction_1_allocation_45","f97eeba7-518f-4fd2-bff6-2fee3068f4c8","20211115_3D_PL_transaction_1_contract_45","f0128559",1356,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_46","c6b28f54-91a6-4ca4-83ed-7a52732a7421","20211115_3D_PL_transaction_1_contract_46","f0720636",90,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_47","169a93aa-9fe0-4242-bad9-5b922a16f367","20211115_3D_PL_transaction_1_contract_47","f01051178",124,0,0,0,0,0,0,0,0,0
 "20210831_EW_PL_transaction_1_allocation_48","c479d02e-a870-4acd-90cc-226ab6aa8e01","20211115_3D_PL_transaction_1_contract_48","f01051178",20,0,0,0,0,0,0,0,0,0
