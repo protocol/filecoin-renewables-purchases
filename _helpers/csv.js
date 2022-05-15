@@ -1,5 +1,6 @@
 import fs from 'fs'
 import Papa from 'papaparse'
+import { globby } from 'globby'
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`);
@@ -52,6 +53,27 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(filePath, fixedNonFloatingNumbersCsv)
+
+        break;
+    case 'create-step-5':
+        const attestationFolder = args[1]
+        const transactionFolder = args[2]
+        const step5FileNameSuffix = "_step5_redemption_information.csv"
+
+        const transactionFolderPathChunks = transactionFolder.split("/")
+        const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+    
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Create step 5 CSV
+        const step5Csv = await createStep5(attestationFolder, transactionFolder)
+
+        // Create new file
+        await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
 
         break;
     default:
@@ -245,6 +267,53 @@ function getHeaderAndColumnTypes(jsonArray) {
     }
 }
 
+// Create step 5
+async function createStep5(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step5Header = ['"attestation_id"', '"smart_contract_address"', '"batchID"', '"network"',
+        '"zl_protocol_version"', '"minerID"', '"beneficiary"', '"redemption_purpose"', '"attestation_folder"']
+    const step5ColumnTypes = ["string", "string", "number", "number",
+        "string", "string", "string", "string", "string"]
+    
+    let step5 = []
+    
+    const pdfs = await globby(`${attestationFolder}/*.pdf`)
+    
+    for (let index = 1; index <= pdfs.length; index++) {
+        step5.push({
+            attestation_id: `${transactionFolderName}_attestation_${index}`,
+            smart_contract_address: null,
+            batchID: null,
+            network: 246,
+            zl_protocol_version: null,
+            minerID: null,
+            beneficiary: null,
+            redemption_purpose: null,
+            attestation_folder: attestationFolderName
+        })
+    }
+
+    let result = step5Header.join(",") + "\r\n" +
+        Papa.unparse(step5, {
+            quotes: step5ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
 
 await new Promise(resolve => setTimeout(resolve, 1000));
 process.exit()
