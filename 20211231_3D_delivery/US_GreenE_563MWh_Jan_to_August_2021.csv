@@ -1,0 +1,25 @@
+reportingStart,Time_region,reportingStartTimezoneOffset,reportingEnd,reportingEndTimezoneOffset,sellerName,sellerAddress,country,region,volume_Wh,generatorName,productType,energySource,generationStart,generationStartTimezoneOffset,generationEnd,generationEndTimezoneOffset
+2021-01-01,ET,-8,2021-01-31,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,22,Meridian Vineyards - Meridian Red Tank RT PV1,GREEN-E,SOLAR,2021-01-01,-8,2021-01-31,-8
+2021-01-01,ET,-8,2021-01-31,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,32,Milpitas High School Solar,GREEN-E,SOLAR,2021-01-01,-8,2021-01-31,-8
+2021-01-01,ET,-8,2021-01-31,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,11,William Burnett Elementary,GREEN-E,SOLAR,2021-01-01,-8,2021-01-31,-8
+2021-02-01,ET,-8,2021-02-28,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,25,GLT Laguna Solar - San Luis Obispo - Laguna Middle,GREEN-E,SOLAR,2021-02-01,-8,2021-02-28,-8
+2021-02-01,ET,-8,2021-02-28,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,20,GLT Los Osos Solar - San Luis Obispo - Los Osos Middle,GREEN-E,SOLAR,2021-02-01,-8,2021-02-28,-8
+2021-02-01,ET,-8,2021-02-28,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,18,GLT Los Rob 160 - DDRC Marengo,GREEN-E,SOLAR,2021-02-01,-8,2021-02-28,-8
+2021-02-01,ET,-8,2021-02-28,-8,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,1,Red Bluff Joint Union High School - Red Bluff 2,GREEN-E,SOLAR,2021-02-01,-8,2021-02-28,-8
+2021-03-01,ET,-8,2021-03-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,23,GLT Los Rob 160 - DDRC Marengo,GREEN-E,SOLAR,2021-03-01,-8,2021-03-31,-7
+2021-03-01,ET,-8,2021-03-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,1,Red Bluff Joint Union High School - Red Bluff 1,GREEN-E,SOLAR,2021-03-01,-8,2021-03-31,-7
+2021-04-01,ET,-7,2021-04-30,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,14,GLT The Pike 150 - DDRC Long Beach,GREEN-E,SOLAR,2021-04-01,-7,2021-04-30,-7
+2021-05-01,ET,-7,2021-05-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,9,GLT Los Rob 60 - DDRC Marengo,GREEN-E,SOLAR,2021-05-01,-7,2021-05-31,-7
+2021-05-01,ET,-7,2021-05-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,15,GLT The Pike 150 - DDRC Long Beach,GREEN-E,SOLAR,2021-05-01,-7,2021-05-31,-7
+2021-06-01,ET,-7,2021-06-30,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,13,GLT Los Osos Solar - San Luis Obispo - Los Osos Middle,GREEN-E,SOLAR,2021-06-01,-7,2021-06-30,-7
+2021-06-01,ET,-7,2021-06-30,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,24,GLT Los Rob 160 - DDRC Marengo,GREEN-E,SOLAR,2021-06-01,-7,2021-06-30,-7
+2021-06-01,ET,-7,2021-06-30,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,9,GLT Los Rob 60 - DDRC Marengo,GREEN-E,SOLAR,2021-06-01,-7,2021-06-30,-7
+2021-06-01,ET,-7,2021-06-30,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,19,GLT The Pike 115 - DDRC Long Beach,GREEN-E,SOLAR,2021-06-01,-7,2021-06-30,-7
+2021-06-01,ET,-7,2021-06-30,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,15,GLT The Pike 150 - DDRC Long Beach,GREEN-E,SOLAR,2021-06-01,-7,2021-06-30,-7
+2021-07-01,ET,-7,2021-07-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,28,GLT Laguna Solar - San Luis Obispo - Laguna Middle,GREEN-E,SOLAR,2021-07-01,-7,2021-07-31,-7
+2021-07-01,ET,-7,2021-07-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,35,GLT Los Osos Solar - San Luis Obispo - Los Osos Middle,GREEN-E,SOLAR,2021-07-01,-7,2021-07-31,-7
+2021-07-01,ET,-7,2021-07-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,23,GLT Los Rob 160 - DDRC Marengo,GREEN-E,SOLAR,2021-07-01,-7,2021-07-31,-7
+2021-07-01,ET,-7,2021-07-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,9,GLT Los Rob 60 - DDRC Marengo,GREEN-E,SOLAR,2021-07-01,-7,2021-07-31,-7
+2021-07-01,ET,-7,2021-07-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,20,GLT The Pike 115 - DDRC Long Beach,GREEN-E,SOLAR,2021-07-01,-7,2021-07-31,-7
+2021-07-01,ET,-7,2021-07-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,15,GLT The Pike 150 - DDRC Long Beach,GREEN-E,SOLAR,2021-07-01,-7,2021-07-31,-7
+2021-08-01,ET,-7,2021-08-31,-7,"3Degrees Group, Inc",235 Montgomery St Suite 320 CA94104 San Francisco US,US,WECC,162,GLT Chuckawalla Solar - State of California - Chuckawalla Prison 2,GREEN-E,SOLAR,2021-08-01,-7,2021-08-31,-7

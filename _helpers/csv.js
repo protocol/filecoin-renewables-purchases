@@ -11,6 +11,7 @@ const args = process.argv.slice(2)
 const activities = args[0]
 let filePath
 let jsonContent
+let attestationFolder, transactionFolder
 switch (activities) {
     case 'fix-dates':
         filePath = args[1]
@@ -56,8 +57,8 @@ switch (activities) {
 
         break;
     case 'create-step-5':
-        const attestationFolder = args[1]
-        const transactionFolder = args[2]
+        attestationFolder = args[1]
+        transactionFolder = args[2]
         const step5FileNameSuffix = "_step5_redemption_information.csv"
 
         const transactionFolderPathChunks = transactionFolder.split("/")
@@ -76,9 +77,33 @@ switch (activities) {
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
 
         break;
+    case 'create-step-6-3d':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+        const step6FileNameSuffix = "_step6_generationRecords.csv"
+
+        const attestationFolderChunks = attestationFolder.split("/")
+        const attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null) {
+            console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Create step 6 CSV
+        const step6Csv = await createStep63D(attestationFolder, transactionFolder)
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
+
+        break;
     default:
         console.error(`Error! Bad argument provided. ${activities} are not supported.`)
 }
+
+await new Promise(resolve => setTimeout(resolve, 1000));
+process.exit()
 
 // Grabs CSV file and parse it as JSON
 async function getCsvAndParseToJson(filePath) {
@@ -315,5 +340,78 @@ async function createStep5(attestationFolder, transactionFolder) {
     })
 }
 
-await new Promise(resolve => setTimeout(resolve, 1000));
-process.exit()
+// Create step 6
+async function createStep63D(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step6Header = ['"attestation_id"', '"attestation_file"', '"attestation_cid"', '"certificate"',
+        '"certificate_cid"', '"reportingStart"', '"reportingStartTimezoneOffset"', '"reportingEnd"', '"reportingEndTimezoneOffset"',
+        '"sellerName"', '"sellerAddress"', '"country"', '"region"', '"volume_Wh"', '"generatorName"', '"productType"',
+        '"energySource"', '"generationStart"', '"generationStartTimezoneOffset"', '"generationEnd"', '"generationEndTimezoneOffset"']
+    const step6ColumnTypes = ["string", "string", "string", "string",
+        "string", "string", "number", "string", "number",
+        "string", "string", "string", "string", "number", "string", "string",
+        "string", "string", "number", "string", "number"]
+    
+    let step6 = []
+    
+    const pdfs = await globby(`${attestationFolder}/*.pdf`)
+    
+    let attestationIndex = 1
+    for (const pdf of pdfs) {
+        const pdfPathChunks = pdf.split("/")
+        const pdfName = pdfPathChunks[pdfPathChunks.length-1]
+        const csvName = pdfName.replace(".pdf", ".csv")
+
+        const certificates = await getCsvAndParseToJson(`${attestationFolder}/${csvName}`)
+
+        let certificateIndex = 1
+        for (const certificate of certificates) {
+            step6.push({
+                attestation_id: `${transactionFolderName}_attestation_${attestationIndex}`,
+                attestation_file: pdfName,
+                attestation_cid: null,
+                certificate: pdfName.replace(".pdf",`_certificate_${certificateIndex}`),
+                certificate_cid: null,
+                reportingStart: certificate.reportingStart,
+                reportingStartTimezoneOffset: certificate.reportingStartTimezoneOffset,
+                reportingEnd: certificate.reportingEnd,
+                reportingEndTimezoneOffset: certificate.reportingEndTimezoneOffset,
+                sellerName: certificate.sellerName,
+                sellerAddress: certificate.sellerAddress,
+                country: certificate.country,
+                region: certificate.region,
+                volume_Wh: certificate.volume_Wh * 1000000, // incorrect values in 3D CSVs (MWhs values)
+                generatorName: certificate.generatorName,
+                productType: certificate.productType,
+                energySource: certificate.energySource,
+                generationStart: certificate.generationStart,
+                generationStartTimezoneOffset: certificate.generationStartTimezoneOffset,
+                generationEnd: certificate.generationEnd,
+                generationEndTimezoneOffset: certificate.generationEndTimezoneOffset
+            })
+            certificateIndex++
+        }
+        attestationIndex++
+    }
+
+    let result = step6Header.join(",") + "\r\n" +
+        Papa.unparse(step6, {
+            quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
