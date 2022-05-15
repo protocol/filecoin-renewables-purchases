@@ -1,6 +1,7 @@
 import fs from 'fs'
 import Papa from 'papaparse'
 import { globby } from 'globby'
+import moment from 'moment'
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`);
@@ -12,6 +13,13 @@ const activities = args[0]
 let filePath
 let jsonContent
 let attestationFolder, transactionFolder
+let attestationFolderChunks, attestationFolderName
+const step2FileNameSuffix = "_step2_orderSupply.csv"
+const step3FileNameSuffix = "_step3_match.csv"
+const step5FileNameSuffix = "_step5_redemption_information.csv"
+const step6FileNameSuffix = "_step6_generationRecords.csv"
+const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
+
 switch (activities) {
     case 'fix-dates':
         filePath = args[1]
@@ -59,7 +67,6 @@ switch (activities) {
     case 'create-step-5':
         attestationFolder = args[1]
         transactionFolder = args[2]
-        const step5FileNameSuffix = "_step5_redemption_information.csv"
 
         const transactionFolderPathChunks = transactionFolder.split("/")
         const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
@@ -80,13 +87,13 @@ switch (activities) {
     case 'create-step-6-3d':
         attestationFolder = args[1]
         transactionFolder = args[2]
-        const step6FileNameSuffix = "_step6_generationRecords.csv"
+        step6FileNameSuffix = "_step6_generationRecords.csv"
 
-        const attestationFolderChunks = attestationFolder.split("/")
-        const attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
 
-        if(attestationFolder == null) {
-            console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100));
             process.exit()
         }
@@ -96,6 +103,26 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
+
+        break;
+    case 'create-step-7-3d':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Create step 7 CSV
+        const step7Csv = await createStep73D(attestationFolder, transactionFolder)
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
         break;
     default:
@@ -340,11 +367,8 @@ async function createStep5(attestationFolder, transactionFolder) {
     })
 }
 
-// Create step 6
+// Create step 6, 3D
 async function createStep63D(attestationFolder, transactionFolder) {
-    const attestationFolderPathChunks = attestationFolder.split("/")
-    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
-
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -402,6 +426,161 @@ async function createStep63D(attestationFolder, transactionFolder) {
     let result = step6Header.join(",") + "\r\n" +
         Papa.unparse(step6, {
             quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Create step 7, 3D
+async function createStep73D(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
+    const step7ColumnTypes = ["string", "number", "string", "string", "string"]
+    
+    let step7 = []
+    
+    // Grab step3, 2 and 6 CSVs
+    const step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+    const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    const step6 = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+
+    // Traverse allocations
+    for (const allocation of step3) {
+        const contractId = allocation.contract_id
+        const minerID = allocation.minerID
+        let volumeMWh = allocation.volume_MWh
+
+        // Find contract
+        let contract = step2.filter((c) => {return c.contract_id == contractId})
+        if(!contract.length) {
+            console.error(`Can't find ${contractId} in ${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+            continue
+        }
+        contract = contract[0]
+        const reportingStart = moment(contract.reportingStart, "YYYY-MM-DD")
+        const reportingEnd = moment(contract.reportingEnd, "YYYY-MM-DD")
+
+        // Try matching generation records
+        let matches = step6.filter((cert) => {
+            const generationStart = moment(cert.generationStart, "YYYY-MM-DD")
+            const generationEnd = moment(cert.generationEnd, "YYYY-MM-DD")
+//            const matchingDateRange = generationStart.isSameOrAfter(reportingStart)
+//                && generationEnd.isSameOrBefore(reportingEnd)
+            const matchingDateRange = generationStart.isSameOrBefore(reportingEnd) &&
+                generationEnd.isSameOrAfter(reportingStart)
+            return cert.country == contract.country &&
+                ((cert.region == "US") ? (cert.region == contract.region) : true) &&
+//                cert.productType == contract.productType &&
+                matchingDateRange &&
+                cert.volume_Wh > 0
+        })
+
+        if(!matches.length) {
+            // Didn't find any matches for allocation
+//            console.error(`Found nothing matching for ${allocation.allocation_id} (${contract.country}, ${contract.region}, ${contract.reportingStart} - ${contract.reportingEnd})`)
+        }
+        else if(matches.length > 1) {
+            // Found several matches for allocation
+            for (const certificate of matches) {
+                if(volumeMWh > 0 && volumeMWh <= certificate.volume_Wh/1000000) {
+                    step7.push({
+                        certificate: certificate.certificate,
+                        volume_MWh: volumeMWh,
+                        order_folder: transactionFolderName,
+                        contract: contractId,
+                        minerID: minerID
+                    })
+                    
+                    // Deduct from available RECs
+                    certificate.volume_Wh -= volumeMWh * 1000000
+
+                    // No need to look further
+                    volumeMWh = 0
+                    break
+                }
+                else if(volumeMWh > 0) {
+                    // Take what is available
+                    step7.push({
+                        certificate: certificate.certificate,
+                        volume_MWh: certificate.volume_Wh/1000000,
+                        order_folder: transactionFolderName,
+                        contract: contractId,
+                        minerID: minerID
+                    })
+                    
+                    // Deduct from needed RECs
+                    volumeMWh -= certificate.volume_Wh/1000000
+
+                    // Deduct from available RECs
+                    certificate.volume_Wh = 0
+                }
+            }
+        }
+        else {
+            // Found exactly 1 match for allocation
+            const certificate = matches[0]
+            if(volumeMWh> 0 && volumeMWh <= certificate.volume_Wh/1000000) {
+                step7.push({
+                    certificate: certificate.certificate,
+                    volume_MWh: volumeMWh,
+                    order_folder: transactionFolderName,
+                    contract: contractId,
+                    minerID: minerID
+                })
+                
+                // Deduct from available RECs
+                certificate.volume_Wh -= volumeMWh * 1000000
+
+                volumeMWh = 0
+            }
+            else if(volumeMWh > 0) {
+                // Take what is available
+                step7.push({
+                    certificate: certificate.certificate,
+                    volume_MWh: certificate.volume_Wh/1000000,
+                    order_folder: transactionFolderName,
+                    contract: contractId,
+                    minerID: minerID
+                })
+
+                // This remains as missing
+                volumeMWh -= certificate.volume_Wh/1000000
+
+                // Deduct from available RECs
+                certificate.volume_Wh = 0
+            }
+        }
+
+        // Log if we have some RECs missing
+        if(volumeMWh > 0) {
+            console.error(`Missing ${volumeMWh} needed for ${allocation.allocation_id} (${contract.country}, ${contract.region}, ${contract.reportingStart} - ${contract.reportingEnd})`)
+        }
+    }
+
+    // Calculate what remained unspent
+    const remained = step6.filter((cert) => {return cert.volume_Wh > 0})
+    console.info(`\r\nRemained:`)
+    for (const r of remained) {
+        console.info(`${r.certificate}: ${r.volume_Wh / 1000000} (${r.country}, ${r.region}, ${r.generationStart} - ${r.generationEnd})`)
+    }
+
+    let result = step7Header.join(",") + "\r\n" +
+        Papa.unparse(step7, {
+            quotes: step7ColumnTypes.map((ct) => {return ct != 'number'}),
             quoteChar: '"',
             escapeChar: '"',
             delimiter: ",",
