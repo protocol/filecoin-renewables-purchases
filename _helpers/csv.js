@@ -141,6 +141,18 @@ switch (activities) {
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
         break;
+    case 'rename-attestations-sp':
+        attestationFolder = args[1]
+
+        if(attestationFolder == null) {
+            console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        await renameAttestationsSP(attestationFolder)
+
+        break;
     default:
         console.error(`Error! Bad argument provided. ${activities} are not supported.`)
 }
@@ -609,4 +621,30 @@ async function createStep73D(attestationFolder, transactionFolder) {
     return new Promise((resolve) => {
         resolve(result)
     })
+}
+
+// Rename attestation files, SP
+async function renameAttestationsSP(attestationFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const pdfs = await globby(`${attestationFolder}/*.pdf`)
+    
+    for (const pdf of pdfs) {
+        const attestationFilePathChunks = pdf.split("/")
+        const attestationFileName = attestationFilePathChunks[attestationFilePathChunks.length-1]
+        const attestationFileNameChunks = attestationFileName.split(".")
+        attestationFileNameChunks.pop()
+        const attestationFileBaseName = attestationFileNameChunks.join(".")
+        try {
+            // Rename file
+            const attestationFileName = `${attestationFolderName}_${parseInt(attestationFileBaseName, 10) - 2}`
+            await fs.promises.rename(pdf, `${attestationFolder}/${attestationFileName}.pdf`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+    }
+
+    return true
 }

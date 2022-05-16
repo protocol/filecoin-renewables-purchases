@@ -34,6 +34,12 @@ Creating step 7 CSV and matching certificates against allocations (3D)
 
     /* npm run csv create-step-7-3d 20211231_3D_delivery 20211115_3D_PL_transaction_1 */
 
+Renaming attestation files (SP)
+
+    npm run csv rename-attestations-sp attestation_folder_path
+
+    /* npm run csv rename-attestations-sp 20220429_SP_delivery */
+
 ### License
 Licensed under the MIT license.
 http://www.opensource.org/licenses/mit-license.php
