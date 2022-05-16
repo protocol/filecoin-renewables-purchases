@@ -101,6 +101,14 @@ switch (activities) {
         // Create step 6 CSV
         const step6Csv = await createStep63D(attestationFolder, transactionFolder)
 
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
 
@@ -120,6 +128,14 @@ switch (activities) {
 
         // Create step 7 CSV
         const step7Csv = await createStep73D(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
 
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
