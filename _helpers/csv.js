@@ -20,7 +20,7 @@ const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
 const step6FileNameSuffix = "_step6_generationRecords.csv"
 const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
-let step3Csv
+let step3Csv, step6Csv
 
 switch (activities) {
     case 'fix-dates':
@@ -89,7 +89,6 @@ switch (activities) {
     case 'create-step-6-3d':
         attestationFolder = args[1]
         transactionFolder = args[2]
-        step6FileNameSuffix = "_step6_generationRecords.csv"
 
         attestationFolderChunks = attestationFolder.split("/")
         attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
@@ -101,7 +100,7 @@ switch (activities) {
         }
 
         // Create step 6 CSV
-        const step6Csv = await createStep63D(attestationFolder, transactionFolder)
+        step6Csv = await createStep63D(attestationFolder, transactionFolder)
 
         try {
             // Bakup existing file
@@ -180,6 +179,34 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, step3Csv)
+
+        break;
+    case 'create-step-6-sp':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Create step 6 CSV
+        step6Csv = await createStep6SP(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
 
         break;
     default:
@@ -720,6 +747,77 @@ async function fixStep3SP(transactionFolder) {
     let result = step3Header.join(",") + "\r\n" +
         Papa.unparse(step3, {
             quotes: step3ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Create step 6, SP
+async function createStep6SP(attestationFolder, transactionFolder) {
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step6Header = ['"attestation_id"', '"attestation_file"', '"attestation_cid"', '"certificate"',
+        '"certificate_cid"', '"reportingStart"', '"reportingStartTimezoneOffset"', '"reportingEnd"', '"reportingEndTimezoneOffset"',
+        '"sellerName"', '"sellerAddress"', '"country"', '"region"', '"volume_Wh"', '"generatorName"', '"productType"',
+        '"energySource"', '"generationStart"', '"generationStartTimezoneOffset"', '"generationEnd"', '"generationEndTimezoneOffset"']
+    const step6ColumnTypes = ["string", "string", "string", "string",
+        "string", "string", "number", "string", "number",
+        "string", "string", "string", "string", "number", "string", "string",
+        "string", "string", "number", "string", "number"]
+    
+    let step6 = []
+    
+    const pdfs = await globby(`${attestationFolder}/*.pdf`)
+    const step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+    const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    
+    for (const pdf of pdfs) {
+        const pdfPathChunks = pdf.split("/")
+        const pdfName = pdfPathChunks[pdfPathChunks.length-1]
+        const pdfNameChunks = pdfName.replace(".pdf", "").split("_")
+        const attestationIndex = pdfNameChunks[pdfNameChunks.length-1]
+        const allocationId = `${transactionFolderName}_allocation_${attestationIndex}`
+        const allocation = step3.filter((a) => {return a.allocation_id == allocationId})[0]
+        const contract = step2.filter((c) => {return c.contract_id == allocation.contract_id})[0]
+
+        step6.push({
+            attestation_id: `${transactionFolderName}_attestation_${attestationIndex}`,
+            attestation_file: pdfName,
+            attestation_cid: null,
+            certificate: pdfName.replace(".pdf",`_certificate_${attestationIndex}`),
+            certificate_cid: null,
+            reportingStart: contract.reportingStart,
+            reportingStartTimezoneOffset: null,
+            reportingEnd: contract.reportingEnd,
+            reportingEndTimezoneOffset: null,
+            sellerName: contract.sellerName,
+            sellerAddress: contract.sellerAddress,
+            country: contract.country,
+            region: contract.region,
+            volume_Wh: allocation.volume_MWh * 1000000,
+            generatorName: "Longli Jia Tuo Mountain Windfarm",
+            productType: contract.productType,
+            energySource: contract.energySources,
+            generationStart: contract.reportingStart,
+            generationStartTimezoneOffset: null,
+            generationEnd: contract.reportingEnd,
+            generationEndTimezoneOffset: null
+        })
+    }
+
+    let result = step6Header.join(",") + "\r\n" +
+        Papa.unparse(step6, {
+            quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
             quoteChar: '"',
             escapeChar: '"',
             delimiter: ",",
