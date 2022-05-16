@@ -20,7 +20,7 @@ const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
 const step6FileNameSuffix = "_step6_generationRecords.csv"
 const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
-let step3Csv, step6Csv
+let step3Csv, step6Csv, step7Csv
 
 switch (activities) {
     case 'fix-dates':
@@ -128,7 +128,7 @@ switch (activities) {
         }
 
         // Create step 7 CSV
-        const step7Csv = await createStep73D(attestationFolder, transactionFolder)
+        step7Csv = await createStep73D(attestationFolder, transactionFolder)
 
         try {
             // Bakup existing file
@@ -207,6 +207,34 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
+
+        break;
+    case 'create-step-7-sp':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Create step 7 CSV
+        step7Csv = await createStep7SP(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
         break;
     default:
@@ -818,6 +846,52 @@ async function createStep6SP(attestationFolder, transactionFolder) {
     let result = step6Header.join(",") + "\r\n" +
         Papa.unparse(step6, {
             quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Create step 7, SP
+async function createStep7SP(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
+    const step7ColumnTypes = ["string", "number", "string", "string", "string"]
+    
+    let step7 = []
+    
+    // Grab 3 CSV
+    const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    
+    for (const allocation of step3) {
+        const allocationId = allocation.allocation_id
+        const allocationIdChunks = allocationId.split("_")
+        const allocationIndex = allocationIdChunks[allocationIdChunks.length-1]
+        step7.push({
+            certificate: `${attestationFolderName}_certificate_${allocationIndex}`,
+            volume_MWh: allocation.volume_MWh,
+            order_folder: transactionFolderName,
+            contract: allocation.contract_id,
+            minerID: allocation.minerID
+        })
+    }
+
+    let result = step7Header.join(",") + "\r\n" +
+        Papa.unparse(step7, {
+            quotes: step7ColumnTypes.map((ct) => {return ct != 'number'}),
             quoteChar: '"',
             escapeChar: '"',
             delimiter: ",",
