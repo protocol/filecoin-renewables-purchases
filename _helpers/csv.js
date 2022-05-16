@@ -14,6 +14,7 @@ let filePath
 let jsonContent
 let attestationFolder, transactionFolder
 let attestationFolderChunks, attestationFolderName
+let transactionFolderChunks, transactionFolderName
 const step2FileNameSuffix = "_step2_orderSupply.csv"
 const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
@@ -68,8 +69,8 @@ switch (activities) {
         attestationFolder = args[1]
         transactionFolder = args[2]
 
-        const transactionFolderPathChunks = transactionFolder.split("/")
-        const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+        transactionFolderChunks = transactionFolder.split("/")
+        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
     
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
@@ -151,6 +152,33 @@ switch (activities) {
         }
 
         await renameAttestationsSP(attestationFolder)
+
+        break;
+    case 'fix-step-3-sp':
+        transactionFolder = args[1]
+
+        transactionFolderChunks = transactionFolder.split("/")
+        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
+
+        if(transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder path is required parameter.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Fix step 3 CSV
+        const step3Csv = await fixStep3SP(transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, step3Csv)
 
         break;
     default:
@@ -647,4 +675,59 @@ async function renameAttestationsSP(attestationFolder) {
     }
 
     return true
+}
+
+// Fix step 3, SP
+async function fixStep3SP(transactionFolder) {
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step3Header = ['"allocation_id"', '"UUID"', '"contract_id"', '"minerID"', '"volume_MWh"', '"defaulted"',
+        '"step4_ZL_contract_complete"', '"step5_redemption_data_complete"', '"step6_attestation_info_complete"',
+        '"step7_certificates_matched_to_supply"', '"step8_IPLDrecord_complete"', '"step9_transaction_complete"',
+        '"step10_volta_complete"', '"step11_finalRecord_complete"']
+    const step3ColumnTypes = ["string", "string", "string", "string", "number", "number",
+        "number", "number", "number",
+        "number", "number", "number",
+        "number", "number"]
+
+    const allocations = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`) // exlude header
+
+    let step3 = []
+    let allocationIndex = 1
+    for (const allocation of allocations) {
+        step3.push({
+            allocation_id: `${transactionFolderName}_allocation_${allocationIndex}`,
+            UUID: allocation.uuid,
+            contract_id: allocation.contract_id,
+            minerID: allocation.minerID,
+            volume_MWh: allocation.volume_MWh,
+            defaulted: allocation.defaulted,
+            step4_ZL_contract_complete: allocation.step4_ZL_contract_complete,
+            step5_redemption_data_complete: allocation.step5_redemption_data_complete,
+            step6_attestation_info_complete: allocation.step6_attestation_info_complete,
+            step7_certificates_matched_to_supply: allocation.step7_certificates_matched_to_supply,
+            step8_IPLDrecord_complete: allocation.step8_IPLDrecord_complete,
+            step9_transaction_complete: allocation.step9_transaction_complete,
+            step10_volta_complete: allocation.step10_volta_complete,
+            step11_finalRecord_complete: allocation.step11_finalRecord_complete
+        })
+        allocationIndex++
+    }
+
+    let result = step3Header.join(",") + "\r\n" +
+        Papa.unparse(step3, {
+            quotes: step3ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
 }
