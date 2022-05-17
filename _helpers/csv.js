@@ -625,7 +625,9 @@ async function addTimezoneOffsets(attestationFolder) {
         }
         const generationEnd = moment(certificate.generationEnd, "YYYY-MM-DD")
         const dstStart = moment(`${generationEnd.year()}-03-15`, "YYYY-MM-DD")
-        const offset = (generationEnd.isSameOrAfter(dstStart)) ? timezone.dstOffset/60 : timezone.utcOffset/60
+        const dstEnd = moment(`${generationEnd.year()}-11-06`, "YYYY-MM-DD")
+        const offset = (generationEnd.isSameOrAfter(dstStart) && generationEnd.isSameOrBefore(dstEnd))
+            ? timezone.dstOffset/60 : timezone.utcOffset/60
 
         // Set time zone offsets
         certificate.generationStartTimezoneOffset = offset
