@@ -265,6 +265,20 @@ switch (activities) {
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
         break;
+    case 'list-non-matching-dates':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Log non matching records
+        await listNonMatchingDates3D(attestationFolder, transactionFolder)
+
+        break;
     default:
         console.error(`Error! Bad argument provided. ${activities} are not supported.`)
 }
@@ -1005,4 +1019,71 @@ async function createStep7SP(attestationFolder, transactionFolder) {
     return new Promise((resolve) => {
         resolve(result)
     })
+}
+
+// List non matching (date-to-date / generation vs. reporting start/end), 3D
+async function listNonMatchingDates3D(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+    
+    // Grab step  2, 3, 6 and 7 CSVs
+    const step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+    const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    const step6 = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+    const step7 = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`)
+
+    // Traverse allocations
+    for (const allocation of step3) {
+        const contractId = allocation.contract_id
+        const orderingMinerID = allocation.minerID
+        const volumeMWhOrdered = allocation.volume_MWh
+
+        // Find contract in step 2
+        let contract = step2.filter((c) => {return c.contract_id == contractId})
+        if(!contract.length) {
+            console.error(`Can't find ${contractId} in ${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+            continue
+        }
+        contract = contract[0]
+        const reportingStart = moment(contract.reportingStart, "YYYY-MM-DD")
+        const reportingEnd = moment(contract.reportingEnd, "YYYY-MM-DD")
+
+        // Find contract in step 7
+        let contractDelivery = step7.filter((c) => {return c.contract == contractId})
+        if(!contractDelivery.length) {
+            console.error(`Can't find ${contractId} in ${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`)
+            continue
+        }
+        contractDelivery = contractDelivery[0]
+        const receivingMinerID = contractDelivery.minerID
+        const volumeMWhDelivered = contractDelivery.volume_MWh
+        const certificateId = contractDelivery.certificate
+
+        // Find certificate in step 6
+        let certificate = step6.filter((c) => {return c.certificate == certificateId})
+        if(!certificate.length) {
+            console.error(`Can't find ${certificateId} in ${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+            continue
+        }
+        certificate = certificate[0]
+        const generationStart = moment(certificate.generationStart, "YYYY-MM-DD")
+        const generationEnd = moment(certificate.generationEnd, "YYYY-MM-DD")
+
+        // Check matching
+/*         if(!generationStart.isSame(reportingStart) || !generationEnd.isSame(reportingEnd)
+            || (orderingMinerID != receivingMinerID) || (volumeMWhOrdered != volumeMWhDelivered)) {
+                console.error(`Allocation ${allocation.allocation_id}, ${contract.contract_id}, ${certificate.certificate}:
+                Generation start-end: ${generationStart} - ${generationEnd},
+                Reporting start-end: ${reportingStart} - ${reportingEnd},
+                Miner Id: ${orderingMinerID}  (${receivingMinerID}),
+                Volume ordered / delivered: ${volumeMWhOrdered} / ${volumeMWhDelivered}`)
+            }
+ */
+        if(!generationStart.isSame(reportingStart) || !generationEnd.isSame(reportingEnd)) {
+                console.error(`${contract.contract_id}, ${certificate.certificate}:\nGeneration start-end: ${generationStart} - ${generationEnd}\nReporting start-end: ${reportingStart} - ${reportingEnd}\nMiner Id: ${orderingMinerID}`)
+        }
+    }
 }
