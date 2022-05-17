@@ -2,6 +2,7 @@ import fs from 'fs'
 import Papa from 'papaparse'
 import { globby } from 'globby'
 import moment from 'moment'
+import cat from 'countries-and-timezones'
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`);
@@ -101,6 +102,33 @@ switch (activities) {
 
         // Create step 6 CSV
         step6Csv = await createStep63D(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
+
+        break;
+    case 'add-timezone-offsets':
+        attestationFolder = args[1]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null) {
+            console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
+            await new Promise(resolve => setTimeout(resolve, 100));
+            process.exit()
+        }
+
+        // Create step 6 CSV
+        step6Csv = await addTimezoneOffsets(attestationFolder)
 
         try {
             // Bakup existing file
@@ -537,6 +565,77 @@ async function createStep63D(attestationFolder, transactionFolder) {
 
     let result = step6Header.join(",") + "\r\n" +
         Papa.unparse(step6, {
+            quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Add time zone offsets
+async function addTimezoneOffsets(attestationFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const step6Header = ['"attestation_id"', '"attestation_file"', '"attestation_cid"', '"certificate"',
+        '"certificate_cid"', '"reportingStart"', '"reportingStartTimezoneOffset"', '"reportingEnd"', '"reportingEndTimezoneOffset"',
+        '"sellerName"', '"sellerAddress"', '"country"', '"region"', '"volume_Wh"', '"generatorName"', '"productType"',
+        '"energySource"', '"generationStart"', '"generationStartTimezoneOffset"', '"generationEnd"', '"generationEndTimezoneOffset"']
+    const step6ColumnTypes = ["string", "string", "string", "string",
+        "string", "string", "number", "string", "number",
+        "string", "string", "string", "string", "number", "string", "string",
+        "string", "string", "number", "string", "number"]
+
+    let certificates = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+    for (let certificate of certificates) {
+        const timezones = cat.getTimezonesForCountry(certificate.country)
+        if(!timezones.length)
+            continue
+
+        let timezone
+        if(certificate.country == "US") {
+            switch (certificate.region) {
+                case "WECC":
+                    timezone = timezones.filter((tz) => {return tz.name == 'America/Los_Angeles'})[0]
+                    break;
+                case "NPCC":
+                case "RFC":
+                case "SERC":
+                    timezone = timezones.filter((tz) => {return tz.name == 'America/New_York'})[0]
+                    break;
+                case "MRO":
+                case "TRE":
+                    timezone = timezones.filter((tz) => {return tz.name == 'America/Denver'})[0]
+                    break;
+                default:
+                    break;
+            }
+            timezone = timezones[0]
+        }
+        else {
+            timezone = timezones[0]
+        }
+        const generationEnd = moment(certificate.generationEnd, "YYYY-MM-DD")
+        const dstStart = moment(`${generationEnd.year()}-03-15`, "YYYY-MM-DD")
+        const offset = (generationEnd.isSameOrAfter(dstStart)) ? timezone.dstOffset/60 : timezone.utcOffset/60
+
+        // Set time zone offsets
+        certificate.generationStartTimezoneOffset = offset
+        certificate.generationEndTimezoneOffset = offset
+        certificate.reportingStartTimezoneOffset = offset
+        certificate.reportingEndTimezoneOffset = offset
+    }
+
+    let result = step6Header.join(",") + "\r\n" +
+        Papa.unparse(certificates, {
             quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
             quoteChar: '"',
             escapeChar: '"',
