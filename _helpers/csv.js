@@ -982,7 +982,7 @@ async function createStep7SP(attestationFolder, transactionFolder) {
         const allocationIdChunks = allocationId.split("_")
         const allocationIndex = allocationIdChunks[allocationIdChunks.length-1]
         step7.push({
-            certificate: `${attestationFolderName}_certificate_${allocationIndex}`,
+            certificate: `${attestationFolderName}_${allocationIndex}_certificate_${allocationIndex}`,
             volume_MWh: allocation.volume_MWh,
             order_folder: transactionFolderName,
             contract: allocation.contract_id,
