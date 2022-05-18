@@ -2,7 +2,6 @@
   "name": "filecoin-renewables-purchases",
   "version": "1.0.0",
   "description": "Renewable energy purchases for the Filecoin network",
-  "type": "module",
   "main": "main.js",
   "scripts": {
     "csv": "env-cmd node _helpers/csv.js",
