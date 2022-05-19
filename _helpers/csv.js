@@ -5,8 +5,8 @@ import moment from 'moment'
 import cat from 'countries-and-timezones'
 
 // We'll do logging to fs
-let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`);
-process.stdout.write = process.stderr.write = access.write.bind(access);
+let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`)
+process.stdout.write = process.stderr.write = access.write.bind(access)
 
 // Check for provided parameters
 const args = process.argv.slice(2)
@@ -29,7 +29,7 @@ switch (activities) {
         const dateColumns = args[2]
         if(dateColumns == null) {
             console.error(`Error! Bad argument provided. Date columns is required parameter.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
         jsonContent = await getCsvAndParseToJson(filePath)
@@ -41,20 +41,20 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(filePath, fixedDatesCsv)
 
-        break;
+        break
     case 'fix-non-floating-numbers':
         filePath = args[1]
         const numbersColumns = args[2]
         let base = args[3]
         if(numbersColumns == null) {
             console.error(`Error! Bad argument provided. Numbers columns is required parameter.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
         base = parseInt(base, 10)
         if(isNaN(base)) {
             console.error(`Error! Bad argument provided. Provided base is not a number.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
         jsonContent = await getCsvAndParseToJson(filePath)
@@ -66,7 +66,7 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(filePath, fixedNonFloatingNumbersCsv)
 
-        break;
+        break
     case 'create-step-5':
         attestationFolder = args[1]
         transactionFolder = args[2]
@@ -76,7 +76,7 @@ switch (activities) {
     
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -86,7 +86,7 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
 
-        break;
+        break
     case 'create-step-6-3d':
         attestationFolder = args[1]
         transactionFolder = args[2]
@@ -96,7 +96,7 @@ switch (activities) {
 
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -114,7 +114,7 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
 
-        break;
+        break
     case 'add-timezone-offsets':
         attestationFolder = args[1]
 
@@ -123,7 +123,7 @@ switch (activities) {
 
         if(attestationFolder == null) {
             console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -141,7 +141,7 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
 
-        break;
+        break
     case 'create-step-7-3d':
         attestationFolder = args[1]
         transactionFolder = args[2]
@@ -151,7 +151,7 @@ switch (activities) {
 
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -169,19 +169,47 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
-        break;
+        break
+    case 'create-step-7-3d-multistep':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Create step 7 CSV
+        step7Csv = await createStep73Dmultistep(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
+
+        break
     case 'rename-attestations-sp':
         attestationFolder = args[1]
 
         if(attestationFolder == null) {
             console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         await renameAttestationsSP(attestationFolder)
 
-        break;
+        break
     case 'fix-step-3-sp':
         transactionFolder = args[1]
 
@@ -190,7 +218,7 @@ switch (activities) {
 
         if(transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Transaction folder path is required parameter.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -208,7 +236,7 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, step3Csv)
 
-        break;
+        break
     case 'create-step-6-sp':
         attestationFolder = args[1]
         transactionFolder = args[2]
@@ -218,7 +246,7 @@ switch (activities) {
 
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -236,7 +264,7 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
 
-        break;
+        break
     case 'create-step-7-sp':
         attestationFolder = args[1]
         transactionFolder = args[2]
@@ -246,7 +274,7 @@ switch (activities) {
 
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
@@ -264,26 +292,26 @@ switch (activities) {
         // Create new file
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
-        break;
+        break
     case 'list-non-matching-dates':
         attestationFolder = args[1]
         transactionFolder = args[2]
 
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Log non matching records
         await listNonMatchingDates3D(attestationFolder, transactionFolder)
 
-        break;
+        break
     default:
         console.error(`Error! Bad argument provided. ${activities} are not supported.`)
 }
 
-await new Promise(resolve => setTimeout(resolve, 1000));
+await new Promise(resolve => setTimeout(resolve, 1000))
 process.exit()
 
 // Grabs CSV file and parse it as JSON
@@ -376,7 +404,7 @@ function isValidDate(date) {
     const day = dateChunks[2]
     const dateObj = new Date(date)
     return (dateObj !== "Invalid Date") && !isNaN(dateObj) &&
-        (dateObj.getFullYear() == year && dateObj.getMonth()+1 == month && dateObj.getDate() == day);
+        (dateObj.getFullYear() == year && dateObj.getMonth()+1 == month && dateObj.getDate() == day)
 }
 
 function guessValidDate(date) {
@@ -619,18 +647,18 @@ async function addTimezoneOffsets(attestationFolder) {
             switch (certificate.region) {
                 case "WECC":
                     timezone = timezones.filter((tz) => {return tz.name == 'America/Los_Angeles'})[0]
-                    break;
+                    break
                 case "NPCC":
                 case "RFC":
                 case "SERC":
                     timezone = timezones.filter((tz) => {return tz.name == 'America/New_York'})[0]
-                    break;
+                    break
                 case "MRO":
                 case "TRE":
                     timezone = timezones.filter((tz) => {return tz.name == 'America/Denver'})[0]
-                    break;
+                    break
                 default:
-                    break;
+                    break
             }
             timezone = timezones[0]
         }
@@ -1086,4 +1114,446 @@ async function listNonMatchingDates3D(attestationFolder, transactionFolder) {
                 console.error(`${contract.contract_id}, ${certificate.certificate}:\nGeneration start-end: ${generationStart} - ${generationEnd}\nReporting start-end: ${reportingStart} - ${reportingEnd}\nMiner Id: ${orderingMinerID}`)
         }
     }
+}
+
+// Create step 7, 3D, multistep approach
+async function createStep73Dmultistep(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
+    const step7ColumnTypes = ["string", "number", "string", "string", "string"]
+    
+    let step7 = []
+    
+    // Grab step 2, 3 and 6 CSVs
+    let step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+    let step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    let step6 = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+
+    // First itteration
+    // Traverse all certificates for exact matches
+    console.log(`-------- First itteration (exact matches) --------`)
+    _step73DItterateCertificates(step2, step3, step6, step7, transactionFolderName, 1)
+
+    // Second itteration
+    // Traverse remaining certificates for partial matches
+    // (reportingStart <= generationStart && generationEnd <= reportingEnd)
+    console.log(`\r\n-------- Second itteration (partial matches) --------`)
+    console.log(`-------- (reportingStart <= generationStart && generationEnd <= reportingEnd) --------`)
+    _step73DItterateCertificates(step2, step3, step6, step7, transactionFolderName, 2)
+
+    // Third itteration
+    // Traverse remaining certificates for loose overlapping
+    // (reportingStart <= generationEnd && generationStart <= reportingEnd)
+    console.log(`\r\n-------- Third itteration (overlapping) --------`)
+    console.log(`-------- (reportingStart <= generationEnd && generationStart <= reportingEnd) --------`)
+    _step73DItterateCertificates(step2, step3, step6, step7, transactionFolderName, 3)
+
+    // Calculate what remained unspent
+    const remained = step6.filter((cert) => {return cert.volume_Wh > 0})
+    console.info(`\r\nRemained undelivered:`)
+    for (const r of remained) {
+        console.info(`${r.certificate}: ${r.volume_Wh / 1000000} (${r.country}, ${r.region}, ${r.generationStart} - ${r.generationEnd})`)
+    }
+    
+    // Calculate what remained unmatched
+    const unmatched = step2.filter((contract) => {return contract.volume_MWh > 0})
+    console.info(`\r\nRemained unsuplied:`)
+    for (const r of unmatched) {
+        console.info(`${r.contract_id}: ${r.volume_MWh} (${r.country}, ${r.region}, ${r.reportingStart} - ${r.reportingEnd})`)
+    }
+    
+    let result = step7Header.join(",") + "\r\n" +
+        Papa.unparse(step7, {
+            quotes: step7ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+function _step73DItterateCertificates(step2, step3, step6, step7, transactionFolderName, itteration) {
+    let certificatesToRemove = []
+    for (const certificate of step6) {
+        const certificateId = certificate.certificate
+        const generationCountry = certificate.country
+        const generationRegion = certificate.region
+        const generationStart = moment(certificate.generationStart, "YYYY-MM-DD")
+        const generationEnd = moment(certificate.generationEnd, "YYYY-MM-DD")
+
+        let matches = [1]
+
+        while(matches.length) {
+            // Reset match flag
+            for (const contract of step2) {
+                contract.match = null
+            }
+
+            let generationVolumeMWh = certificate.volume_Wh / 1000000
+            if(generationVolumeMWh <= 0)
+                break
+
+            // Try matching contract records
+            matches = step2.filter((contract) => {
+                const reportingCountry = contract.country
+                const reportingRegion = contract.region
+                const reportingStart = moment(contract.reportingStart, "YYYY-MM-DD")
+                const reportingEnd = moment(contract.reportingEnd, "YYYY-MM-DD")
+                let matchingDateRange
+                switch (itteration) {
+                    case 1:
+                        matchingDateRange = generationStart.isSame(reportingStart)
+                            && generationEnd.isSame(reportingEnd)
+                        break;
+                    case 2:
+                        matchingDateRange = generationStart.isSameOrAfter(reportingStart)
+                            && generationEnd.isSameOrBefore(reportingEnd)
+                        break;
+                    case 3:
+                        matchingDateRange = generationStart.isSameOrBefore(reportingEnd)
+                            && generationEnd.isSameOrAfter(reportingStart)
+                        break;
+                    default:
+                        break;
+                }
+                return generationCountry == reportingCountry &&
+                    ((generationCountry == "US") ? (generationRegion == reportingRegion) : true) &&
+                    matchingDateRange
+            }).sort((a, b) => {return a.volume_MWh - b.volume_MWh})
+
+            console.log(`\n${certificateId} (${generationCountry}, ${generationRegion}, ${generationStart.format("YYYY-MM-DD")}-${generationEnd.format("YYYY-MM-DD")}, ${generationVolumeMWh} MWh) - matches: ${matches.length}`)
+            let orderedVolumeMWh = 0
+            for (const contract of matches) {
+                const contractId = contract.contract_id
+                const reportingCountry = contract.country
+                const reportingRegion = contract.region
+                const reportingStart = contract.reportingStart
+                const reportingEnd = contract.reportingEnd
+                const reportingVolumeMWh = contract.volume_MWh
+                orderedVolumeMWh += reportingVolumeMWh
+                console.log(`${contractId} (${reportingCountry}, ${reportingRegion}, ${reportingStart}-${reportingEnd}, ${reportingVolumeMWh} MWh)`)
+            }
+            console.log(`Reported volume: ${orderedVolumeMWh} - Generated volume: ${generationVolumeMWh}`)
+
+            if(generationVolumeMWh >= orderedVolumeMWh && orderedVolumeMWh > 0) {
+                let contractsToRemove = []
+                for (const contract of matches) {
+                    if(contract.match)
+                        continue    // if we already matched this contract against a certificate
+                    contract.match = certificateId 
+                    const allocations = step3.filter((a) => {return a.contract_id == contract.contract_id})
+                        .sort((a, b) => {return a.volume_MWh - b.volume_MWh})
+                    let allocationsToRemove = []
+                    for (const allocation of allocations) {
+                        step7.push({
+                            certificate: certificateId,
+                            volume_MWh: allocation.volume_MWh,
+                            order_folder: transactionFolderName,
+                            contract: contract.contract_id,
+                            minerID: allocation.minerID
+                        })
+
+                        // Mark fulfilled allocations to remove from step 3
+                        const allocationToRemove = step3
+                            .filter((st3) => {return st3.allocation_id == allocation.allocation_id})[0].allocation_id
+                        allocationsToRemove.push(allocationToRemove)
+                    }
+                    // Remove fulfilled allocations from step 3
+                    for (const altr of allocationsToRemove) {
+                        if(altr == undefined)
+                            continue
+                        const allocationIndex = step3
+                            .map((st3) => {return st3.allocation_id})
+                            .indexOf(altr)
+                        step3.splice(allocationIndex, 1)
+                    }
+
+                    // Mark fulfilled contracts to remove from step 2
+                    const contractToRemove = step2
+                        .filter((st2) => {return st2.contract_id == contract.contract_id})[0].contract_id
+                    contractsToRemove.push(contractToRemove)
+                }
+                // Remove fulfilled contracts from step 2
+                for (const crttr of contractsToRemove) {
+                    const contractIndex = step2
+                        .map((st2) => {return st2.contract_id})
+                        .indexOf(crttr)
+                    const contract = step2[contractIndex]
+                    if(contract == undefined)
+                        continue
+                    console.log(`REMOVED ${contract.contract_id} (${contract.country}, ${contract.region}, ${contract.reportingStart}-${contract.reportingEnd}, ${contract.volume_MWh} MWh)`)
+                    step2.splice(contractIndex, 1)
+                }
+
+                // Remove or deduct volume for (partially) fulfilled certificates, step 6
+                const certificateIndex = step6.map((st6) => {return st6.certificate})
+                    .indexOf(certificate.certificate)
+                if(generationVolumeMWh == orderedVolumeMWh) {   // remove
+                    // Mark fulfilled certificates to remove from step 6
+                    const certificateToRemove = step6
+                        .filter((st6) => {return st6.certificate == certificate.certificate})[0].certificate
+                    certificatesToRemove.push(certificateToRemove)
+                    step6[certificateIndex].volume_Wh = 0
+                    console.log(`TO BE REMOVED ${certificateId} (${generationCountry}, ${generationRegion}, ${generationStart.format("YYYY-MM-DD")}-${generationEnd.format("YYYY-MM-DD")}, ${step6[certificateIndex].volume_Wh / 1000000} MWh)`)
+                }
+                else {  // deduct volume
+                    step6[certificateIndex].volume_Wh = (generationVolumeMWh - orderedVolumeMWh) * 1000000
+                    console.log(`CHANGED ${certificateId} (${generationCountry}, ${generationRegion}, ${generationStart.format("YYYY-MM-DD")}-${generationEnd.format("YYYY-MM-DD")}, ${step6[certificateIndex].volume_Wh / 1000000} MWh)`)
+                }
+            }
+            else if(generationVolumeMWh < orderedVolumeMWh) {     // missing volume for exact match
+                let assignedVolumeMWh = 0
+                let matchesVolumes = matches.map((m) => {return m.volume_MWh})
+                console.log(`Subset sum is matching: ${_isSubsetSum(matchesVolumes, matchesVolumes.length, generationVolumeMWh)}`)
+                if(_isSubsetSum(matchesVolumes, matchesVolumes.length, generationVolumeMWh)) {
+                    const subset = _createSubsets(matchesVolumes, generationVolumeMWh)
+                    console.log(`${subset}`)
+                    let exactMatches = []
+                    let emIndexes = []
+                    for (const val of subset) {
+                        const index = matchesVolumes.indexOf(val)
+                        emIndexes.push(index)
+                        matchesVolumes[index] = -1
+                    }
+                    for (const emi of emIndexes) {
+                        exactMatches.push(matches[emi])
+                    }
+                    let contractsToRemove = []
+                    for (const contract of exactMatches) {
+                        console.log(`EXACT MATCHES ${contract.contract_id} (${contract.country}, ${contract.region}, ${contract.reportingStart}-${contract.reportingEnd}, ${contract.volume_MWh} MWh)`)
+
+                        let allocatedVolumeMWh = 0
+                        const allocations = step3.filter((a) => {return a.contract_id == contract.contract_id})
+                            .sort((a, b) => {return a.volume_MWh - b.volume_MWh})
+                        let allocationsToRemove = []
+                        for (const allocation of allocations) {
+                            const allocationVolumeMWh = (allocation.volume_MWh > (generationVolumeMWh - assignedVolumeMWh))
+                                ?  (generationVolumeMWh - assignedVolumeMWh) : allocation.volume_MWh
+                            if(allocationVolumeMWh == 0)
+                                continue    // skip, no RECs left
+                            // assign and duduct volume
+                            step7.push({
+                                certificate: certificateId,
+                                volume_MWh: allocationVolumeMWh,
+                                order_folder: transactionFolderName,
+                                contract: contract.contract_id,
+                                minerID: allocation.minerID
+                            })
+                            allocatedVolumeMWh += allocationVolumeMWh
+                            assignedVolumeMWh += allocationVolumeMWh
+
+                            // Remove fulfilled allocations from step 3
+                            const allocationIndex = step3.map((st3) => {return st3.allocation_id})
+                                .indexOf(allocation.allocation_id)
+                            if(allocation.volume_MWh == allocationVolumeMWh) {  // fulfilled, remove
+                                // Mark fulfilled allocations to remove from step 3
+                                const allocationToRemove = step3
+                                    .filter((st3) => {return st3.allocation_id == allocation.allocation_id})[0].allocation_id
+                                allocationsToRemove.push(allocationToRemove)
+                            }
+                            else {      // deduct volume
+                                step3[allocationIndex].volume_MWh = (allocation.volume_MWh - allocationVolumeMWh)
+                            }
+                        }
+                        // Remove fulfilled allocations from step 3
+                        for (const altr of allocationsToRemove) {
+                            if(altr == undefined)
+                                continue
+                            const allocationIndex = step3
+                                .map((st3) => {return st3.allocation_id})
+                                .indexOf(altr)
+                            step3.splice(allocationIndex, 1)
+                        }
+
+                        // Remove fulfilled contracts or deduct volume from step 2
+                        const contractIndex = step2.map((st2) => {return st2.contract_id})
+                            .indexOf(contract.contract_id)
+                        if(contract.volume_MWh == allocatedVolumeMWh) {  // fulfilled, remove
+                            // Mark fulfilled contracts to remove from step 2
+                            const contractToRemove = step2
+                                .filter((st2) => {return st2.contract_id == contract.contract_id})[0].contract_id
+                            contractsToRemove.push(contractToRemove)
+                        }
+                        else {      // deduct volume
+                            step2[contractIndex].volume_MWh = (contract.volume_MWh - allocatedVolumeMWh)
+                            console.log(`CHANGED ${contract.contract_id} (${contract.country}, ${contract.region}, ${contract.reportingStart}-${contract.reportingEnd}, ${step2[contractIndex].volume_MWh} MWh)`)
+                            contract.match = null
+                        }
+                    }
+                    // Remove fulfilled contracts from step 2
+                    for (const crttr of contractsToRemove) {
+                        const contractIndex = step2
+                            .map((st2) => {return st2.contract_id})
+                            .indexOf(crttr)
+                        const contract = step2[contractIndex]
+                        if(contract == undefined)
+                            continue
+                        console.log(`REMOVED ${contract.contract_id} (${contract.country}, ${contract.region}, ${contract.reportingStart}-${contract.reportingEnd}, ${contract.volume_MWh} MWh)`)
+                        step2.splice(contractIndex, 1)
+                    }
+                }
+                else {
+                    let contractsToRemove = []
+                    for (const contract of matches) {
+                        let allocatedVolumeMWh = 0
+                        const allocations = step3.filter((a) => {return a.contract_id == contract.contract_id})
+                            .sort((a, b) => {return a.volume_MWh - b.volume_MWh})
+                        let allocationsToRemove = []
+                        for (const allocation of allocations) {
+                            const allocationVolumeMWh = (allocation.volume_MWh > (generationVolumeMWh - assignedVolumeMWh))
+                                ?  (generationVolumeMWh - assignedVolumeMWh) : allocation.volume_MWh
+                            if(allocationVolumeMWh == 0)
+                                continue    // skip, no RECs left
+                            // assign and duduct volume
+                            step7.push({
+                                certificate: certificateId,
+                                volume_MWh: allocationVolumeMWh,
+                                order_folder: transactionFolderName,
+                                contract: contract.contract_id,
+                                minerID: allocation.minerID
+                            })
+                            allocatedVolumeMWh += allocationVolumeMWh
+                            assignedVolumeMWh += allocationVolumeMWh
+
+                            // Remove fulfilled allocations from step 3
+                            const allocationIndex = step3.map((st3) => {return st3.allocation_id})
+                                .indexOf(allocation.allocation_id)
+                            if(allocation.volume_MWh == allocationVolumeMWh) {  // fulfilled, remove
+                                // Mark fulfilled allocations to remove from step 3
+                                const allocationToRemove = step3
+                                    .filter((st3) => {return st3.allocation_id == allocation.allocation_id})[0].allocation_id
+                                allocationsToRemove.push(allocationToRemove)
+                            }
+                            else {      // deduct volume
+                                step3[allocationIndex].volume_MWh = (allocation.volume_MWh - allocationVolumeMWh)
+                            }
+                        }
+                        // Remove fulfilled allocations from step 3
+                        for (const altr of allocationsToRemove) {
+                            if(altr == undefined)
+                                continue
+                            const allocationIndex = step3
+                                .map((st3) => {return st3.allocation_id})
+                                .indexOf(altr)
+                            step3.splice(allocationIndex, 1)
+                        }
+
+                        // Remove fulfilled contracts or deduct volume from step 2
+                        const contractIndex = step2.map((st2) => {return st2.contract_id})
+                            .indexOf(contract.contract_id)
+                        if(contract.volume_MWh == allocatedVolumeMWh) {  // fulfilled, remove
+                            // Mark fulfilled contracts to remove from step 2
+                            const contractToRemove = step2
+                                .filter((st2) => {return st2.contract_id == contract.contract_id})[0].contract_id
+                            contractsToRemove.push(contractToRemove)
+                        }
+                        else {      // deduct volume
+                            step2[contractIndex].volume_MWh = (contract.volume_MWh - allocatedVolumeMWh)
+                            console.log(`CHANGED ${contract.contract_id} (${contract.country}, ${contract.region}, ${contract.reportingStart}-${contract.reportingEnd}, ${step2[contractIndex].volume_MWh} MWh)`)
+                            contract.match = null
+                        }
+                    }
+                    // Remove fulfilled contracts from step 2
+                    for (const crttr of contractsToRemove) {
+                        const contractIndex = step2
+                            .map((st2) => {return st2.contract_id})
+                            .indexOf(crttr)
+                        const contract = step2[contractIndex]
+                        if(contract == undefined)
+                            continue
+                        console.log(`REMOVED ${contract.contract_id} (${contract.country}, ${contract.region}, ${contract.reportingStart}-${contract.reportingEnd}, ${contract.volume_MWh} MWh)`)
+                        step2.splice(contractIndex, 1)
+                    }
+                }
+                // Remove or deduct volume for (partially) fulfilled certificates, step 6
+                const certificateIndex = step6.map((st6) => {return st6.certificate})
+                    .indexOf(certificate.certificate)
+                if(generationVolumeMWh == assignedVolumeMWh) {   // remove
+                    // Mark fulfilled certificates to remove from step 6
+                    const certificateToRemove = step6
+                        .filter((st6) => {return st6.certificate == certificate.certificate})[0].certificate
+                    certificatesToRemove.push(certificateToRemove)
+                    step6[certificateIndex].volume_Wh = 0
+                    console.log(`TO BE REMOVED ${certificateId} (${generationCountry}, ${generationRegion}, ${generationStart.format("YYYY-MM-DD")}-${generationEnd.format("YYYY-MM-DD")}, ${step6[certificateIndex].volume_Wh / 1000000} MWh)`)
+                }
+                else {  // deduct volume
+                    step6[certificateIndex].volume_Wh = (generationVolumeMWh - assignedVolumeMWh) * 1000000
+                    console.log(`CHANGED ${certificateId} (${generationCountry}, ${generationRegion}, ${generationStart.format("YYYY-MM-DD")}-${generationEnd.format("YYYY-MM-DD")}, ${step6[certificateIndex].volume_Wh / 1000000} MWh)`)
+                }
+            }
+            else {      // order volume is 0 (over delivered)
+
+            }
+        }
+    }
+    // Remove fulfilled certificates from step 6
+    for (const crt of certificatesToRemove) {
+        const certificateIndex = step6
+            .map((st6) => {return st6.certificate})
+            .indexOf(crt)
+        const certificate = step6[certificateIndex]
+        if(certificate == undefined)
+            continue
+        console.log(`REMOVED ${certificate.certificate} (${certificate.country}, ${certificate.region}, ${certificate.generationStart}-${certificate.generationEnd}, ${certificate.volume_Wh / 1000000} MWh)`)
+        step6.splice(certificateIndex, 1)
+    }
+}
+
+function _isSubsetSum(set, n, sum)
+{
+    if (sum == 0)
+        return true
+    if (n == 0)
+        return false
+
+    if (set[n - 1] > sum)
+        return _isSubsetSum(set, n - 1, sum)
+
+    return _isSubsetSum(set, n - 1, sum)
+        || _isSubsetSum(set, n - 1, sum - set[n - 1])
+}
+
+function _createSubsets(numbers, target) {
+    numbers = numbers.filter(function (value) {
+        return value <= target
+    })
+
+    numbers.sort(function (a, b) {
+        return b - a
+    })
+
+    var result = []
+
+    while (numbers.length > 0) {
+        var i
+        var sum = 0
+        var addedIndices = []
+
+        for (i = 0; i < numbers.length; i++) {
+            if (sum + numbers[i] <= target) {
+                sum += numbers[i]
+                addedIndices.push(i)
+            }
+        }
+
+        var subset = []
+        for (i = addedIndices.length - 1; i >= 0; i--) {
+            subset.unshift(numbers[addedIndices[i]])
+            numbers.splice(addedIndices[i], 1)
+        }
+        result.push(subset)
+    }
+    return result[0]
 }

@@ -90,4 +90,5 @@ function test_step_7(delivery_folder, step_7_filename){
 module.exports = {test_step_7}
 
 // test_step_7('20210831_delivery', '20210831_delivery_step7_certificate_to_contract.csv')
-test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')
+//test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')
+test_step_7('20211231_3D_delivery', '20211231_3D_delivery_step7_certificate_to_contract.csv')
