@@ -87,6 +87,33 @@ switch (activities) {
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
 
         break
+    case 'unquote-step-6-numeric-fields':
+        attestationFolder = args[1]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null) {
+            console.error(`Error! Bad arguments provided. Attestation folder path is required parameter.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Step 6 CSV
+        step6Csv = await unquoteStep6NumericFields(attestationFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, step6Csv)
+
+        break
     case 'create-step-6-3d':
         attestationFolder = args[1]
         transactionFolder = args[2]
@@ -1644,4 +1671,65 @@ function _createSubsets(numbers, target) {
         result.push(subset)
     }
     return result[0]
+}
+
+// Unquote step 6 numeric fields
+async function unquoteStep6NumericFields(attestationFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const step6Header = ['"attestation_id"', '"attestation_file"', '"attestation_cid"', '"certificate"',
+        '"certificate_cid"', '"reportingStart"', '"reportingStartTimezoneOffset"', '"reportingEnd"', '"reportingEndTimezoneOffset"',
+        '"sellerName"', '"sellerAddress"', '"country"', '"region"', '"volume_Wh"', '"generatorName"', '"productType"', '"label"',
+        '"energySource"', '"generationStart"', '"generationStartTimezoneOffset"', '"generationEnd"', '"generationEndTimezoneOffset"']
+    const step6ColumnTypes = ["string", "string", "string", "string",
+        "string", "string", "number", "string", "number",
+        "string", "string", "string", "string", "number", "string", "string", "string",
+        "string", "string", "number", "string", "number"]
+
+    let step6 = []
+
+    let certificates = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+    for (let certificate of certificates) {
+        step6.push({
+            attestation_id: certificate.attestation_id,
+            attestation_file: certificate.attestation_file,
+            attestation_cid: certificate.attestation_cid,
+            certificate: certificate.certificate,
+            certificate_cid: certificate.certificate_cid,
+            reportingStart: certificate.reportingStart,
+            reportingStartTimezoneOffset: certificate.reportingStartTimezoneOffset,
+            reportingEnd: certificate.reportingEnd,
+            reportingEndTimezoneOffset: certificate.reportingEndTimezoneOffset,
+            sellerName: certificate.sellerName,
+            sellerAddress: certificate.sellerAddress,
+            country: certificate.country,
+            region: certificate.region,
+            volume_Wh: certificate.volume_Wh,
+            generatorName: certificate.generatorName,
+            productType: certificate.productType,
+            label: certificate.label,
+            energySource: certificate.energySource,
+            generationStart: certificate.generationStart,
+            generationStartTimezoneOffset: certificate.generationStartTimezoneOffset,
+            generationEnd: certificate.generationEnd,
+            generationEndTimezoneOffset: certificate.generationEndTimezoneOffset
+        })
+    }
+
+    let result = step6Header.join(",") + "\r\n" +
+        Papa.unparse(step6, {
+            quotes: step6ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
 }
