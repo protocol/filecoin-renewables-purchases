@@ -62,13 +62,15 @@ async function get_total_energy_data(start, end, minerID){
 
   // The filecoin green api can only use timestamps at one day resolution
   // Limit should therefore be multiple of 24*60*2=2880 (number of blocks in one day)
-  one_day_blocks = 2880
-  limit = one_day_blocks*120
+  // one_day_blocks = 2880
+  // limit = one_day_blocks*120
+  limit = 1000
 
   // console.log(`Calculating sum of upper limit for minerID ${minerID} from ${start} to ${end}`)
 
   // Sealing request
-  requestString = `https://api.filecoin.energy/models/export?end=${end}&id=5&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  // requestString = `https://api.filecoin.energy/models/export?end=${end}&id=5&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  requestString = `https://api.filecoin.energy/models/export?end=${end}&code_name=SealedModel&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
   console.log(requestString)
   var sealing_records = await axios.get(requestString)
   sealing_records_data = sealing_records.data.data
@@ -79,7 +81,8 @@ async function get_total_energy_data(start, end, minerID){
   // console.log(totalSealed_GiB)
 
   // Storage request
-  requestString = `https://api.filecoin.energy/models/export?end=${end}&id=6&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  // requestString = `https://api.filecoin.energy/models/export?end=${end}&id=6&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
+  requestString = `https://api.filecoin.energy/models/export?end=${end}&code_name=CapacityModel&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
   var storage_records = await axios.get(requestString)
   storage_records_data = storage_records.data.data
   // console.log(storage_records_data)
