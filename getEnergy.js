@@ -42,50 +42,54 @@ async function get_previous_renewables(minerID){
   return toReturn
 }
 
-// Date format example: '2020-07-01'
-async function get_total_energy_data(start, end, minerID){
+// Requests data from the dashboard API
+// If we hit the limit, makes multiple requests and combines the data
+// Start and end points are limits, output is not inclusive of end day
+async function request_data(start, end, code_name, minerID, outputOn){
 
-  // Major questions:
-  // (1) what if the limit (of datapoints returned from energy API) is too small?
-    // Checked this with timers (below), we can make the limit high enough for the entire chain for a quarter.
-    // Individual minerIDs have fewer datapoints so should be fine for much longer
-    // If you are looking at the total chain for more than three months, data may be cut off.
-    // Will throw an error below if you hit the limit
-  // (2) what if there isn't a block exactly at the time start and end?
-    // For individual miners, this is expected to happen frequently
- // (3) How close is the output to previous estimates?
+  limit = 1000 // This is set to 1000 by the API; will give incorrect results if you use >1000
 
- // To-do list:
-  // Give upper, est, and lower
-  // Allow user to request model version
-  // Possibly allow user more visibility into and control over request limit
+  start = new Date(start)
+  requestString = `https://api.filecoin.energy/models/export?end=${end}&code_name=${code_name}&limit=${limit}&offset=0&start=${start.toISOString()}&miner=${minerID}`
+  if (outputOn) {console.log(requestString)}
 
-  // The filecoin green api can only use timestamps at one day resolution
-  // Limit should therefore be multiple of 24*60*2=2880 (number of blocks in one day)
-  // one_day_blocks = 2880
-  // limit = one_day_blocks*120
-  limit = 1000
+  var returned_records = await axios.get(requestString)
+  var returned_records_data = returned_records.data.data
 
-  // console.log(`Calculating sum of upper limit for minerID ${minerID} from ${start} to ${end}`)
+  // If the array length equals the limit, we need to recursively append to this array
+  if (returned_records_data.length == limit){
 
-  // Sealing request
-  // requestString = `https://api.filecoin.energy/models/export?end=${end}&id=5&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
-  requestString = `https://api.filecoin.energy/models/export?end=${end}&code_name=SealedModel&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
-  console.log(requestString)
-  var sealing_records = await axios.get(requestString)
-  sealing_records_data = sealing_records.data.data
-  // console.log(`Array length from sealing request: ${sealing_records_data.length}`)
+    // Find timestamp between this block and the next
+    last_time = returned_records_data[returned_records_data.length - 1].timestamp
+    time_unix = new Date(last_time).getTime()
+    next_time_unix = time_unix + 15000 // Advance by 15s, which is 0.5 block time
+    next_start_time = new Date(next_time_unix)
+
+    // Request next segment
+    var new_data = await request_data(next_start_time, end, code_name, minerID, outputOn)
+    return [...returned_records_data, ...new_data]
+
+  }else{
+
+    // If the request doesn't equal the limit, assume the limit is large enough
+    // to cover the entire time range
+    return returned_records_data
+  }
+}
+
+// Date format example: '2020-07-01', or ISO 8601 timestamp
+async function get_total_energy_data(start, end, minerID, outputOn){
+
+  sealing_records_data = await request_data(start, end, 'SealedModel', minerID, outputOn)
+
   totalSealed_GiB = sealing_records_data.reduce((previousValue, elem) => {
     return previousValue + Number(elem.sealed_this_epoch_GiB)
   }, 0)
-  // console.log(totalSealed_GiB)
+
+
 
   // Storage request
-  // requestString = `https://api.filecoin.energy/models/export?end=${end}&id=6&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
-  requestString = `https://api.filecoin.energy/models/export?end=${end}&code_name=CapacityModel&limit=${limit}&offset=0&start=${start}&miner=${minerID}`
-  var storage_records = await axios.get(requestString)
-  storage_records_data = storage_records.data.data
-  // console.log(storage_records_data)
+  storage_records_data = await request_data(start, end, 'CapacityModel', minerID, outputOn)
 
   if(storage_records_data.length == 0){
     return {
