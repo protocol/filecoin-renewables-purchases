@@ -2,7 +2,9 @@ import fs from 'fs'
 import Papa from 'papaparse'
 import { globby } from 'globby'
 import moment from 'moment'
+import axios from 'axios'
 import cat from 'countries-and-timezones'
+import all from 'it-all'
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`)
@@ -277,7 +279,7 @@ switch (activities) {
         }
 
         // Fix step 3 CSV
-        step3Csv = await fixStep3SP(transactionFolder)
+        step3Csv = await createStep3SP(transactionFolder)
 
         try {
             // Bakup existing file
@@ -359,6 +361,36 @@ switch (activities) {
 
         // Log non matching records
         await listNonMatchingDates3D(attestationFolder, transactionFolder)
+
+        break
+    case 'create-step-3':
+        transactionFolder = args[1]
+        const minersLocationsFile = args[2]
+        const priorityMinersFile = args[3]
+        const nercFile = args[4]
+
+        const transactionFolderPathChunks = transactionFolder.split("/")
+        const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+    
+        if(transactionFolder == null || minersLocationsFile == null || priorityMinersFile == null || nercFile == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, priority miners and nerc file paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Create step 3 CSV
+        step3Csv = await createStep3(transactionFolder, minersLocationsFile, priorityMinersFile, nercFile)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, step3Csv)
 
         break
     default:
@@ -1733,3 +1765,466 @@ async function unquoteStep6NumericFields(attestationFolder) {
         resolve(result)
     })
 }
+
+// Create step 3 CSV
+async function createStep3(transactionFolder, minersLocationsFile, priorityMinersFile, nercFile) {
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step3Header = ['"allocation_id"', '"UUID"', '"contract_id"', '"minerID"', '"volume_MWh"', '"defaulted"',
+        '"step4_ZL_contract_complete"', '"step5_redemption_data_complete"', '"step6_attestation_info_complete"',
+        '"step7_certificates_matched_to_supply"', '"step8_IPLDrecord_complete"', '"step9_transaction_complete"',
+        '"step10_volta_complete"', '"step11_finalRecord_complete"']
+    const step3ColumnTypes = ["string", "string", "string", "string", "number", "number",
+        "number", "number", "number",
+        "number", "number", "number",
+        "number", "number"]
+
+    let step3 = []
+    let syntheticLocations = []
+    let miners = []
+    let previousAllocations = []
+    let previousContracts = []
+    let syntheticLocationsObj = {}
+    let contracts
+    let nercFilePath
+    try {
+        let estuaryActiveMiners = (await axios("https://api.estuary.tech/public/miners", {
+            method: 'get'
+        })).data
+//            .filter((m) => {return m.suspended == false})   // suspended category is temporary, they did use the energy to seal and store data so include them
+            .map((m) => {return m.addr})
+        
+        const syntheticLocationsFilePath = `./${transactionFolder}/_assets/${minersLocationsFile}`
+        syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+        syntheticLocations = JSON.parse(syntheticLocations).regions
+        let syntheticLocationsMiners = syntheticLocations
+            .filter((m) => {return m.delegate == null}) // try with delegates to see are all estuary miner's having locations 
+            .map((m) => {return m.provider})
+        // Remove duplicates
+        syntheticLocationsMiners = syntheticLocationsMiners.filter(_onlyUnique)
+
+        let syntheticLocationsMinersWithDelegates = syntheticLocations
+            .map((m) => {return m.provider})
+        // Remove duplicates
+        syntheticLocationsMinersWithDelegates = syntheticLocationsMinersWithDelegates.filter(_onlyUnique)
+
+        const priorityMinersFilePath = `./${transactionFolder}/_assets/${priorityMinersFile}`
+        const mnrs = await fs.promises.readFile(priorityMinersFilePath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+
+        miners.push(JSON.parse(mnrs))
+        miners.push(estuaryActiveMiners)
+        miners.push(syntheticLocationsMiners)
+        miners.push(syntheticLocationsMinersWithDelegates)
+
+        contracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+
+        nercFilePath = `./${transactionFolder}/_assets/${nercFile}`
+    }
+    catch (error)
+    {
+        console.error('Input miners files are missing or corrupted')
+        return new Promise((resolve) => {
+            resolve(null)
+        })
+    }
+
+    // Make from syntheticLocations an object with minerId as a key
+    for (const rec of syntheticLocations) {
+        const loc = rec["region"].split("-")
+        if(syntheticLocationsObj[rec["provider"]] == null) {
+            syntheticLocationsObj[rec["provider"]] = [{
+                "country": loc[0],
+                "state": (loc[1] != undefined) ? ((loc[1] != "XX") ? loc[1] : null) : null,
+                "hasDelegate": rec["delegate"] != null 
+            }]
+        }
+        else {
+            syntheticLocationsObj[rec["provider"]].push({
+                "country": loc[0],
+                "state": (loc[1] != undefined) ? ((loc[1] != "XX") ? loc[1] : null) : null,
+                "hasDelegate": rec["delegate"] != null 
+            })
+        }
+    }
+
+    const transactionFolders = fs.readdirSync("./").filter((file) => {
+        return file.indexOf("_transaction_") > -1 && file.indexOf(transactionFolder) == -1
+    })
+
+    for (const transactionFol of transactionFolders) {
+        const transactionFolPathChunks = transactionFol.split("/")
+        const transactionFolName = transactionFolPathChunks[transactionFolPathChunks.length-1]
+        const alloc = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step3FileNameSuffix}`)
+        previousAllocations = previousAllocations.concat(alloc)
+        const contr = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
+        previousContracts = previousContracts.concat(contr)
+    }
+
+    // If more contract remained to be consumed try with other miner sources
+    let minersBatchIndex = 0
+    let minersBatch = miners[minersBatchIndex]
+    let minersEnergyData = {}
+    while(contracts.length && minersBatch && minersBatch.length) {
+        console.log(`minersBatchIndex ${minersBatchIndex}, minersBatch.length: ${minersBatch.length},\n minersBatch:`)
+        console.dir(minersBatch, {depth: null})
+        
+        let step = await _consumeContracts(transactionFolderName, minersBatch, minersEnergyData,
+            syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, contracts, step3)
+        minersEnergyData = step.minersEnergyData
+        previousContracts = step.previousContracts
+        previousAllocations = step.previousAllocations
+        contracts = step.contracts
+        step3 = step.step3
+        minersBatchIndex++
+        minersBatch = miners[minersBatchIndex]
+    }
+    
+    let result = step3Header.join(",") + "\r\n" +
+        Papa.unparse(step3, {
+            quotes: step3ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+async function _consumeContracts(transactionFolderName, miners, minersEnergyData,
+    syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, contracts, step3) {
+
+    // Add region properties to priority miners
+    miners = miners
+        .filter((m) => {return syntheticLocationsObj[m] != null})   // make sure we have location for this miner
+        .map(async (pm) => {
+            const minerWithLoc = await all(syntheticLocationsObj[pm].map(async (m) => {
+                return {
+                    "country": m.country,
+                    "state": m.state,
+                    "region": (m.country != "US") ? null : await _getNerc(m.state, nercFilePath),
+                    "hasDelegate": m.hasDelegate 
+                }
+        }))
+        return {
+            "minerId": pm,
+            "locations": minerWithLoc
+        }
+    })
+    miners = await all(miners)
+
+    // For each contract, find miners with matching coutry/region
+    for (let contract of contracts) {
+        // Skip if contract has no more available credits left
+        let recsAvailable = (typeof contract.volume_MWh != "number")
+            ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
+        contract.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
+        if(recsAvailable <= 0) {
+            console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh})`)
+            continue
+        }
+
+        const country = contract.country
+        const region = contract.region
+
+        for (const miner of miners) {
+            recsAvailable = (typeof contract.volume_MWh != "number")
+                ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
+
+            console.log(`Trying to allocate from contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) to miner ${miner.minerId}`)
+
+            if(recsAvailable <= 0) {
+                console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh}) for miner ${miner.minerId}`)
+                break
+            }
+
+            let matchedGeography = false
+            for (const location of miner.locations) {
+                console.log(`Miner geography ${location.country}-${location.region}, Contract geography ${country}-${region}`)
+                matchedGeography = matchedGeography || (location.country == country && location.region == region)
+            }
+
+            if(matchedGeography) {
+                console.log(`Miner ${miner.minerId} has matching geography`)
+                // Get miner's energy consumption data
+                // for contract reporting period
+                const medIndex = `${miner.minerId}-${contract.reportingStart}-${contract.reportingEnd}`
+                console.log(`Get energy data for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd})`)
+                if(minersEnergyData[medIndex] == null)
+//                    minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner.minerId)
+                    minersEnergyData[medIndex] = await _totalEnergyFromModel(contract.reportingStart, contract.reportingEnd, miner.minerId)
+                    console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd})`)
+
+                const palloc = previousAllocations
+                .filter((a) => {
+                    return a != null && a.minerID == miner.minerId
+                })
+                .map((a) => {
+                    const pcontr = previousContracts
+                        .filter((c) => {
+                            return a.contract_id == c.contract_id
+                        })
+                        .map((c) => {
+                            return {
+                                "reportingStart": c.reportingStart,
+                                "reportingEnd": c.reportingEnd
+                            }
+                    })
+                    return {
+                        "allocation": a.allocation_id,
+                        "contract": a.contract_id,
+                        "recs": a.volume_MWh,
+                        "defaulted": a.defaulted,
+                        "reportingStart": pcontr[0].reportingStart,
+                        "reportingEnd": pcontr[0].reportingEnd
+                    }
+                }).filter((a) => {
+                    const overlapingDateRanges = moment(a.reportingStart).isSameOrBefore(moment(contract.reportingEnd))
+                        && moment(a.reportingEnd).isSameOrAfter(moment(contract.reportingStart))
+                    return (overlapingDateRanges && !a.defaulted)
+                })
+                console.log(`Overlapping allocations:`)
+                console.dir(palloc, {depth: null})
+                if(minersEnergyData[medIndex].total_energy_upper_MWh > 0) {
+                    const recsNeeded = Math.ceil(minersEnergyData[medIndex].total_energy_upper_MWh * 1.5)
+                    const recsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
+        
+                    console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner.minerId}
+                        recsNeeded ${recsNeeded} recsAllocated ${recsAllocated}`)
+
+                    // If we have already allocated this miner what he needs
+                    // or we have no more RECs available with this contract, then skip it
+                    if(recsNeeded <= recsAllocated)
+                        continue
+                    const newlyAllocated = (recsAvailable >= (recsNeeded - recsAllocated))
+                        ? (recsNeeded - recsAllocated) : recsAvailable
+                    contract.volume_MWh = recsAvailable - newlyAllocated
+        
+                    const allocation = {
+                        allocation_id: `${transactionFolderName}_allocation_${step3.length+1}`,
+                        UUID: null,
+                        contract_id: contract.contract_id,
+                        minerID: miner.minerId,
+                        volume_MWh: newlyAllocated,
+                        defaulted: 0,
+                        step4_ZL_contract_complete: 0,
+                        step5_redemption_data_complete: 0,
+                        step6_attestation_info_complete: 0,
+                        step7_certificates_matched_to_supply: 0,
+                        step8_IPLDrecord_complete: 0,
+                        step9_transaction_complete: 0,
+                        step10_volta_complete: 0,
+                        step11_finalRecord_complete: 0
+                    }
+                    step3.push(allocation)
+                    previousAllocations.push(allocation)
+                    console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner.minerId}
+                        recsNeeded ${recsNeeded} recsAllocated ${recsAllocated} newlyAllocated ${newlyAllocated}`)
+                    console.log(allocation)
+                    const pcIds = previousContracts.map((pc) => {return pc.contract_id})
+                    if(pcIds.indexOf(contract.contract_id) == -1)
+                        previousContracts.push(contract)
+                }
+            }
+        }
+    }
+    // Filter out all "empty" contracts
+    contracts = contracts.filter((c) => {return c.volume_MWh > 0})
+    console.dir(contracts.map((c) => {return {
+        "contract_id": c.contract_id,
+        "volume_MWh": c.volume_MWh,
+        "country": c.country,
+        "region": c.region,
+        "reportingStart": c.reportingStart,
+        "reportingEnd": c.reportingEnd
+    }}), {depth: null})
+    console.log(`Remaining after latest miner batch: ${contracts.length}`)
+    
+    return {
+        "minersEnergyData": minersEnergyData,
+        "previousContracts": previousContracts,
+        "previousAllocations": previousAllocations,
+        "contracts": contracts,
+        "step3": step3
+    }
+}
+
+async function _getNerc(state, nercFilePath) {
+    let nerc = await fs.promises.readFile(nercFilePath, {
+        encoding:'utf8',
+        flag:'r'
+    })
+    nerc = JSON.parse(nerc)
+
+for (const region in nerc) {
+        if(nerc[region].indexOf(state) > -1)
+            return region
+    }
+    return null
+}
+
+function _getFilecoinEnergyExportData(miner, dataType, start, end, limit, offset) {
+    const self = this,
+        getUri = 'https://api.filecoin.energy:443/models/export?code_name=' +
+            ((dataType != undefined) ? dataType : 'TotalEnergyModelv_1_0_1') +	// in case of parameter missing -> total energy
+            '&miner=' + miner +
+            '&start=' + start +
+            '&end=' + end +
+            '&limit=' + ((limit != undefined) ? limit : 1000) +
+            '&offset=' + ((offset != undefined) ? offset : 0)
+    return axios(getUri, {
+        method: 'get'
+    })
+}
+
+async function _totalEnergy(start, end, miner){
+    let limit = 1000, offset = 0
+    const PUEupper = 1.93
+
+    // Sealing request
+    let sealingData, sumSealed = 0
+    do {
+        let serr = true
+        while(serr) {
+            try {
+                sealingData = (await _getFilecoinEnergyExportData(miner, 'SealedModel', start, end, limit, offset)).data.data
+                serr = null
+            } catch (error) {
+                serr = error
+            }
+        }
+        sumSealed += sealingData.reduce((prev, elem) => prev + Number(elem.sealed_this_epoch_GiB), 0)
+        offset += limit
+    } while (sealingData.length)
+
+    limit = 1000
+    offset = 0
+    // Storage request
+    let capacityData = [], capacityDataBatch = []
+    do {
+        let cerr = true
+        while(cerr) {
+            try {
+                capacityDataBatch = (await _getFilecoinEnergyExportData(miner, 'CapacityModel', start, end, limit, offset)).data.data
+                cerr = null
+            } catch (error) {
+                cerr = error
+            }
+        }
+        capacityData = capacityData.concat(capacityDataBatch)
+        offset += limit
+    } while (capacityDataBatch.length)
+    let integratedGiBhours = 0
+    let differenceTotalPeriodHours = 0
+    if(capacityData.length) {
+        // Add in records at the beginning and end, for the storage array
+        // If we don't do this, the energy used to store files between the end points (of the request)
+        // and the first/last data points returned will be zero
+        const requestStartTime = moment(start)
+        const firstBlockTime = moment(capacityData[0].timestamp)
+
+        if (!firstBlockTime.isSame(requestStartTime)) {
+            const newFirstRecord = {
+                epoch: null,
+                capacity_GiB: capacityData[0].capacity_GiB,
+                timestamp: start+'T00:00:00.000Z'
+            }
+            capacityData.unshift(newFirstRecord)
+        }
+
+        const requestEndTime = moment(end+'T23:59:30.000Z')
+        const lastBlockTime = moment(capacityData[capacityData.length - 1].timestamp)
+
+        if (!requestEndTime.isSame(lastBlockTime)) {
+            const newLastRecord = {
+                epoch: null,
+                capacity_GiB: capacityData[capacityData.length - 1].capacity_GiB,
+                timestamp: end+'T23:59:30.000Z'
+            }
+            capacityData.push(newLastRecord)
+        }
+
+        // Find actual storage energy from API data
+        const capacityDataWithElapsedTime = capacityData.map((elem, index) => {
+            const prevTime = (index == 0) ? elem.timestamp : capacityData[index - 1].timestamp
+            const hours = moment.duration(moment(elem.timestamp).diff(moment(prevTime))).asHours()
+            elem["timeDiff_hours"] = hours
+            elem["GiB_hours"] = Number(elem.capacity_GiB) * hours
+            return elem
+        })
+        integratedGiBhours = capacityDataWithElapsedTime.reduce((prev, elem) => {
+            return prev + elem.GiB_hours
+        }, 0)
+
+        // Calculate the whole time period of request, in hours
+        const startingTime = moment(capacityDataWithElapsedTime[0].timestamp)
+        const endingTime = moment(capacityDataWithElapsedTime[capacityDataWithElapsedTime.length - 1].timestamp)
+        differenceTotalPeriodHours = moment.duration(endingTime.diff(startingTime)).asHours()
+    }
+
+    const sealingEnergyUpperMWh = sumSealed * 5.60E-8 * 1024**3 / 1E6
+    const storageUpperIntegratedMWh = integratedGiBhours * 8.1E-12 * 1024**3 / 1E6
+    const totalEnergyUpperMWhRecalc = (sealingEnergyUpperMWh + storageUpperIntegratedMWh) * PUEupper
+
+    return {
+        'minerID': miner,
+        'start' : start,
+        'end' : end,
+        'totalSealed_GiB': sumSealed,
+        'total_time_hours' : differenceTotalPeriodHours,
+        'initial_capacity_GiB': (capacityData.length) ? capacityData[0].capacity_GiB : 0,
+        'final_capacity_GiB': (capacityData.length) ? capacityData[capacityData.length - 1].capacity_GiB : 0,
+        'time_average_capacity_GiB' : (differenceTotalPeriodHours) ? integratedGiBhours / differenceTotalPeriodHours : 0,
+        'total_energy_upper_MWh' : totalEnergyUpperMWhRecalc
+    }
+}
+
+function _getFilecoinEnergyModelData(miner, dataType, start, end, filter) {
+    const self = this,
+        getUri = 'https://api.filecoin.energy:443/models/model?code_name=' +
+            ((dataType != undefined) ? dataType : 'TotalEnergyModelv_1_0_1') +	// in case of parameter missing -> total energy
+            '&miner=' + miner +
+            '&start=' + start +
+            '&end=' + end +
+            '&filter=' + ((filter != undefined) ? filter : 'day')
+    return axios(getUri, {
+        method: 'get'
+    })
+}
+
+async function _totalEnergyFromModel(start, end, miner){
+    // Model request
+    let upperDataPoints
+    let merr = true
+    while(merr) {
+        try {
+            upperDataPoints = (await _getFilecoinEnergyModelData(miner, 'CumulativeEnergyModel_v_1_0_1', start, end)).data.data[2].data
+            merr = null
+        } catch (error) {
+            merr = error
+        }
+    }
+
+    return {
+        'minerID': miner,
+        'start' : start,
+        'end' : end,
+        'total_energy_upper_MWh' : (upperDataPoints.length) ? upperDataPoints[upperDataPoints.length  - 1].value / 1000 : 0
+    }
+}
+
+function _onlyUnique(value, index, self) {
+    return self.indexOf(value) === index;
+}  
