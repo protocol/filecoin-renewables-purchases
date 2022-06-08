@@ -1905,6 +1905,7 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
 
 async function _consumeContracts(transactionFolderName, miners, minersEnergyData,
     syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, contracts, step3) {
+    const recsMultFactor = 1.5
 
     // Add region properties to priority miners
     miners = miners
@@ -1967,7 +1968,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                     minersEnergyData[medIndex] = await _totalEnergyFromModel(contract.reportingStart, contract.reportingEnd, miner.minerId)
                     console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd})`)
 
-                const palloc = previousAllocations
+                let palloc = previousAllocations
                 .filter((a) => {
                     return a != null && a.minerID == miner.minerId
                 })
@@ -1998,11 +1999,43 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                 console.log(`Overlapping allocations:`)
                 console.dir(palloc, {depth: null})
                 if(minersEnergyData[medIndex].total_energy_upper_MWh > 0) {
-                    const recsNeeded = Math.ceil(minersEnergyData[medIndex].total_energy_upper_MWh * 1.5)
+                    const recsNeeded = Math.ceil(minersEnergyData[medIndex].total_energy_upper_MWh * recsMultFactor)
+                    const totalRecsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
+
+                    // We should decrease overlapping allocated volumes for periods/energy consuptions
+                    // which are out of curent contract allocation start/end period
+                    palloc = palloc
+                        .map(async (a) => {
+                            // Previous allocation starts before current contract allocation
+                            if(moment(a.reportingStart).isBefore(moment(contract.reportingStart))) {
+                                // Deduct allocation amount for energy spent before currenct contract allocation
+                                const deductingPeriodEnd = moment(contract.reportingStart).add(-1, 'days').format('YYYY-MM-DD')
+                                const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(a.reportingStart, deductingPeriodEnd, miner.minerId)
+                                const recsAllocatedBeforeCurrentAllocationStarts = Math.ceil(energySpentBeforeCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
+                                console.log(`Previous allocation start date ${a.reportingStart} is before current contract allocation start date ${contract.reportingStart}
+                                    so we will deduct ${recsAllocatedBeforeCurrentAllocationStarts} (${energySpentBeforeCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
+                                a.recs = (a.recs >= recsAllocatedBeforeCurrentAllocationStarts) ? a.recs - recsAllocatedBeforeCurrentAllocationStarts : 0
+                            }
+                            // Previous allocation ends after current contract allocation
+                            if(moment(a.reportingEnd).isAfter(moment(contract.reportingEnd))) {
+                                // Deduct allocation amount for energy spent after currenct contract allocation
+                                const deductingPeriodStart = moment(contract.reportingEnd).add(1, 'days').format('YYYY-MM-DD')
+                                const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, a.reportingEnd, miner.minerId)
+                                const recsAllocatedAfterCurrentAllocationEnds = Math.ceil(energySpentAfterCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
+                                console.log(`Previous allocation end date ${a.reportingEnd} is after current contract allocation end date ${contract.reportingEnd}
+                                    so we will deduct ${recsAllocatedAfterCurrentAllocationEnds} (${energySpentAfterCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
+                                a.recs = (a.recs >= recsAllocatedAfterCurrentAllocationEnds) ? a.recs - recsAllocatedAfterCurrentAllocationEnds : 0
+                            }
+                            return a
+                        })
+                    palloc = await all(palloc)
+                    console.log(`Overlapping allocations (volumes after decreasing partial overlapping):`)
+                    console.dir(palloc, {depth: null})
+    
                     const recsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
-        
+
                     console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner.minerId}
-                        recsNeeded ${recsNeeded} recsAllocated ${recsAllocated}`)
+                        recsNeeded ${recsNeeded} recsAllocated ${recsAllocated} (totalRecsAllocated ${totalRecsAllocated})`)
 
                     // If we have already allocated this miner what he needs
                     // or we have no more RECs available with this contract, then skip it
@@ -2227,4 +2260,4 @@ async function _totalEnergyFromModel(start, end, miner){
 
 function _onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
-}  
+}
