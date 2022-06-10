@@ -367,20 +367,21 @@ switch (activities) {
     case 'create-step-3':
         transactionFolder = args[1]
         const minersLocationsFile = args[2]
-        const priorityMinersFile = args[3]
-        const nercFile = args[4]
+        const minersLocationsFileWithLatLng = args[3]
+        const priorityMinersFile = args[4]
+        const nercFile = args[5]
 
         const transactionFolderPathChunks = transactionFolder.split("/")
         const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
     
-        if(transactionFolder == null || minersLocationsFile == null || priorityMinersFile == null || nercFile == null) {
-            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, priority miners and nerc file paths are required parameters.`)
+        if(transactionFolder == null || minersLocationsFile == null || minersLocationsFileWithLatLng == null || priorityMinersFile == null || nercFile == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, miner locations with latitutde and longitude, priority miners and nerc file paths are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Create step 3 CSV
-        step3Csv = await createStep3(transactionFolder, minersLocationsFile, priorityMinersFile, nercFile)
+        step3Csv = await createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, nercFile)
 
         try {
             // Bakup existing file
@@ -1768,7 +1769,7 @@ async function unquoteStep6NumericFields(attestationFolder) {
 }
 
 // Create step 3 CSV
-async function createStep3(transactionFolder, minersLocationsFile, priorityMinersFile, nercFile) {
+async function createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, nercFile) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -1783,11 +1784,12 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
 
     let step3 = []
     let syntheticLocations = []
+    let syntheticLocationsWithLatLng = []
     let miners = []
     let previousAllocations = []
     let previousContracts = []
     let syntheticLocationsObj = {}
-    let contracts
+    let startingContracts, contracts
     let nercFilePath
     try {
         let estuaryActiveMiners = (await axios("https://api.estuary.tech/public/miners", {
@@ -1801,8 +1803,8 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
             encoding:'utf8',
             flag:'r'
         })
-//        syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
-        syntheticLocations = JSON.parse(syntheticLocations).providerLocations   // when using synthetic-country-state-province-locations-latest.json
+        syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
+
         let syntheticLocationsMiners = syntheticLocations
             .filter((m) => {return m.delegate == null}) // try with delegates to see are all estuary miner's having locations 
             .map((m) => {return m.provider})
@@ -1813,6 +1815,13 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
             .map((m) => {return m.provider})
         // Remove duplicates
         syntheticLocationsMinersWithDelegates = syntheticLocationsMinersWithDelegates.filter(_onlyUnique)
+
+        const syntheticLocationsWithLatLngFilePath = `./${transactionFolder}/_assets/${minersLocationsFileWithLatLng}`
+        syntheticLocationsWithLatLng = await fs.promises.readFile(syntheticLocationsWithLatLngFilePath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+        syntheticLocationsWithLatLng = JSON.parse(syntheticLocationsWithLatLng).providerLocations   // when using synthetic-country-state-province-locations-latest.json
 
         const priorityMinersFilePath = `./${transactionFolder}/_assets/${priorityMinersFile}`
         const mnrs = await fs.promises.readFile(priorityMinersFilePath, {
@@ -1825,7 +1834,21 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
         miners.push(syntheticLocationsMiners)
         miners.push(syntheticLocationsMinersWithDelegates)
 
-        contracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+        // Load contracts
+        startingContracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+
+        // Filter future contracts
+        contracts = startingContracts.filter((c) => {return moment(c.reportingEnd).isBefore(moment())})
+
+        // Load previous allocations (step3 CSV if it exists)
+        try {
+            step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+        }
+        catch (err) {
+            console.log(`Step 3 CSV (allocations file) for ${transactionFolder} is not created yet`)
+        }
+
+        // TODO, mark allocated contracts in step2 CSV
 
         nercFilePath = `./${transactionFolder}/_assets/${nercFile}`
     }
@@ -1915,17 +1938,17 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
                 const states = nerc[region]
                 if(states != null && states.length) {
                     for (const state of states) {
-                        minersInRegion = minersInRegion.concat(syntheticLocations
+                        minersInRegion = minersInRegion.concat(syntheticLocationsWithLatLng
                             .filter((m) => {return m.region.indexOf(`${country}-${state}`) == 0}))
                     }
                 }
                 else {
-                    minersInRegion = syntheticLocations
+                    minersInRegion = syntheticLocationsWithLatLng
                         .filter((m) => {return m.region.indexOf(country) == 0})
                 }
             }
             else {
-                minersInRegion = syntheticLocations
+                minersInRegion = syntheticLocationsWithLatLng
                     .filter((m) => {return m.region.indexOf(country) == 0})
             }
             console.log(`${minersInRegion.length} miners found in region ${country}/${region}`)
@@ -1947,7 +1970,7 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
                 const circle = L.circle(centerLatLng, {radius: radius}).addTo(map)
 
                 // Filter miners in radius
-                let minersInRadius = syntheticLocations
+                let minersInRadius = syntheticLocationsWithLatLng
                     .filter((m) => {
                         const lat = m.lat
                         const lng = m.long
