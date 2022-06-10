@@ -5,6 +5,7 @@ import moment from 'moment'
 import axios from 'axios'
 import cat from 'countries-and-timezones'
 import all from 'it-all'
+import HL from './leaflet-headless.cjs'
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`)
@@ -1800,7 +1801,8 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
             encoding:'utf8',
             flag:'r'
         })
-        syntheticLocations = JSON.parse(syntheticLocations).regions
+//        syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
+        syntheticLocations = JSON.parse(syntheticLocations).providerLocations   // when using synthetic-country-state-province-locations-latest.json
         let syntheticLocationsMiners = syntheticLocations
             .filter((m) => {return m.delegate == null}) // try with delegates to see are all estuary miner's having locations 
             .map((m) => {return m.provider})
@@ -1884,6 +1886,42 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
         step3 = step.step3
         minersBatchIndex++
         minersBatch = miners[minersBatchIndex]
+    }
+    
+    // If we have unmatched contracts remained
+    // search for miners in region (start with radius 1000km)
+    if(contracts.length) {
+        let L = HL()    // headless leaflet
+        L.Circle.include({
+            contains: function (latLng) {
+                return this.getLatLng().distanceTo(latLng) < this.getRadius();
+            }
+        })
+        let map = L.map(L.document.createElement('div'))
+
+        let cIndex = 0
+        while (contracts.length) {
+            // Find contract country/region
+            const contract = contracts[cIndex]
+            const country = contract.country
+            const region = contract.region
+
+            // Find a miner (and its location) from that country/region
+            let minersInRegion = []
+            if(country == "US") {
+            }
+            else {
+                minersInRegion = syntheticLocations
+                    .filter((m) => {return m.region.indexOf(country) == 0})
+            }
+
+            // Find center point for searching miners in a radius
+    
+//        let marker = L.marker([43, 22]).addTo(map)
+//        let circle = L.circle([44, 22], {radius: 200}).addTo(map)
+//        if(circle.contains(marker.getLatLng())) {
+//        }
+        }
     }
     
     let result = step3Header.join(",") + "\r\n" +
