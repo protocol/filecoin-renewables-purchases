@@ -24,7 +24,7 @@ const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
 const step6FileNameSuffix = "_step6_generationRecords.csv"
 const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
-let step3Csv, step6Csv, step7Csv
+let step2Csv, step3Csv, step6Csv, step7Csv
 
 switch (activities) {
     case 'fix-dates':
@@ -380,18 +380,28 @@ switch (activities) {
             process.exit()
         }
 
-        // Create step 3 CSV
-        step3Csv = await createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, nercFile)
+        // Create step 3 CSV and update step 2 CSV
+        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, nercFile)
+        if(createStep3Response == null) {
+            console.error(`Error! Could not create step 3 CSV.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        step2Csv = createStep3Response.step2
+        step3Csv = createStep3Response.step3
 
         try {
-            // Bakup existing file
+            // Bakup existing files
+            await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}.bak-${(new Date()).toISOString()}`)
             await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
             console.log(error)            
         }
 
-        // Create new file
+        // Create new files
+        await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`, step2Csv)
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, step3Csv)
 
         break
@@ -1773,6 +1783,17 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
+    const step2Header = ['"contract_id"', '"productType"', '"label"', '"energySources"', '"contractDate"', '"deliveryDate"',
+        '"reportingStart"', '"reportingEnd"', '"sellerName"', '"sellerAddress"', '"country"', '"region"', '"volume_MWh"',
+        '"step3_match_complete"', '"step4_ZL_contract_complete"', '"step5_redemption_data_complete"', '"step6_attestation_info_complete"',
+        '"step7_certificates_matched_to_supply"', '"step8_IPLDrecord_complete"', '"step9_transaction_complete"',
+        '"step10_volta_complete"', '"step11_finalRecord_complete"']
+    const step2ColumnTypes = ["string", "string", "string", "string", "string", "string",
+        "string", "string", "string", "string", "string", "string", "number",
+        "number", "number", "number", "number",
+        "number", "number", "number",
+        "number", "number"]
+
     const step3Header = ['"allocation_id"', '"UUID"', '"contract_id"', '"minerID"', '"volume_MWh"', '"defaulted"',
         '"step4_ZL_contract_complete"', '"step5_redemption_data_complete"', '"step6_attestation_info_complete"',
         '"step7_certificates_matched_to_supply"', '"step8_IPLDrecord_complete"', '"step9_transaction_complete"',
@@ -1789,7 +1810,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
     let previousAllocations = []
     let previousContracts = []
     let syntheticLocationsObj = {}
-    let startingContracts, contracts
+    let startingContracts = [], contracts = [], consumedContracts = []
     let nercFilePath
     try {
         let estuaryActiveMiners = (await axios("https://api.estuary.tech/public/miners", {
@@ -1835,20 +1856,26 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         miners.push(syntheticLocationsMinersWithDelegates)
 
         // Load contracts
-        startingContracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+        contracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+        for (const c of contracts) {
+            let recsAvailable = (typeof c.volume_MWh != "number")
+                ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+            c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
+        }
 
-        // Filter future contracts
-        contracts = startingContracts.filter((c) => {return moment(c.reportingEnd).isBefore(moment())})
+        // Filter future contracts and ones already matched against miner IDs
+        contracts = contracts.filter((c) => {
+            return moment(c.reportingEnd).isSameOrBefore(moment()) && c.step3_match_complete == 0
+        })
 
         // Load previous allocations (step3 CSV if it exists)
         try {
             step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
         }
         catch (err) {
+            step3 = []
             console.log(`Step 3 CSV (allocations file) for ${transactionFolder} is not created yet`)
         }
-
-        // TODO, mark allocated contracts in step2 CSV
 
         nercFilePath = `./${transactionFolder}/_assets/${nercFile}`
     }
@@ -1880,7 +1907,8 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
     }
 
     const transactionFolders = fs.readdirSync("./").filter((file) => {
-        return file.indexOf("_transaction_") > -1 && file.indexOf(transactionFolder) == -1
+        return file.indexOf("_transaction_") > -1
+//        return file.indexOf("_transaction_") > -1 && file.indexOf(transactionFolder) == -1
     })
 
     for (const transactionFol of transactionFolders) {
@@ -1889,9 +1917,11 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         const alloc = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step3FileNameSuffix}`)
         if(alloc != null)
             previousAllocations = previousAllocations.concat(alloc)
-        const contr = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
-        if(contr != null)
+        let contr = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
+        if(contr != null) {
+            contr = contr.filter((c) => {return c.step3_match_complete == 1})
             previousContracts = previousContracts.concat(contr)
+        }
     }
 
     let minersEnergyData = {}
@@ -1903,10 +1933,11 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         console.dir(minersBatch, {depth: null})
         
         let step = await _consumeContracts(transactionFolderName, minersBatch, minersEnergyData,
-            syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, contracts, step3)
+            syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, consumedContracts, contracts, step3)
         minersEnergyData = step.minersEnergyData
         previousContracts = step.previousContracts
         previousAllocations = step.previousAllocations
+        consumedContracts = step.consumedContracts
         contracts = step.contracts
         step3 = step.step3
         minersBatchIndex++
@@ -1994,10 +2025,15 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
                 step3 = step.step3
 
             }
+
             // Filter out all "empty" contracts
             contracts = contracts.filter((c) => {
                 c.volume_MWh = (typeof c.volume_MWh != "number")
                     ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+
+                if(c.volume_MWh == 0)
+                    consumedContracts.push(c.contract_id)
+                
                 return c.volume_MWh > 0
             })
             console.dir(contracts.map((c) => {return {
@@ -2011,18 +2047,43 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
             console.log(`Remaining after latest miner batch: ${contracts.length}`)
         }
     }
-    
-    let result = step3Header.join(",") + "\r\n" +
-        Papa.unparse(step3, {
-            quotes: step3ColumnTypes.map((ct) => {return ct != 'number'}),
-            quoteChar: '"',
-            escapeChar: '"',
-            delimiter: ",",
-            header: false,
-            newline: "\r\n",
-            skipEmptyLines: false,
-            columns: null
-        })
+
+        // Load contracts
+        startingContracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+        for (const c of startingContracts) {
+            let recsAvailable = (typeof c.volume_MWh != "number")
+                ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+            c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
+
+            // Check if contract is matched
+            if(consumedContracts.indexOf(c.contract_id > -1))
+                c.step3_match_complete = 1
+        }
+
+        let result = {
+        "step3": step3Header.join(",") + "\r\n" +
+            Papa.unparse(step3, {
+                quotes: step3ColumnTypes.map((ct) => {return ct != 'number'}),
+                quoteChar: '"',
+                escapeChar: '"',
+                delimiter: ",",
+                header: false,
+                newline: "\r\n",
+                skipEmptyLines: false,
+                columns: null
+            }),
+        "step2": step2Header.join(",") + "\r\n" +
+            Papa.unparse(startingContracts, {
+                quotes: step2ColumnTypes.map((ct) => {return ct != 'number'}),
+                quoteChar: '"',
+                escapeChar: '"',
+                delimiter: ",",
+                header: false,
+                newline: "\r\n",
+                skipEmptyLines: false,
+                columns: null
+            })
+    }
 
     return new Promise((resolve) => {
         resolve(result)
@@ -2030,7 +2091,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
 }
 
 async function _consumeContracts(transactionFolderName, miners, minersEnergyData,
-    syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, contracts, step3) {
+    syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, consumedContracts, contracts, step3) {
     const recsMultFactor = 1.5
 
     // Add region properties to priority miners
@@ -2170,7 +2231,10 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                     const newlyAllocated = (recsAvailable >= (recsNeeded - recsAllocated))
                         ? (recsNeeded - recsAllocated) : recsAvailable
                     contract.volume_MWh = recsAvailable - newlyAllocated
-        
+
+                    if(step3 == null)
+                        step3 = []
+
                     const allocation = {
                         allocation_id: `${transactionFolderName}_allocation_${step3.length+1}`,
                         UUID: null,
@@ -2199,8 +2263,17 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
             }
         }
     }
+
     // Filter out all "empty" contracts
-    contracts = contracts.filter((c) => {return c.volume_MWh > 0})
+    contracts = contracts.filter((c) => {
+        c.volume_MWh = (typeof c.volume_MWh != "number")
+            ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+
+        if(c.volume_MWh == 0)
+            consumedContracts.push(c.contract_id)
+    
+        return c.volume_MWh > 0
+    })
     console.dir(contracts.map((c) => {return {
         "contract_id": c.contract_id,
         "volume_MWh": c.volume_MWh,
@@ -2215,6 +2288,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
         "minersEnergyData": minersEnergyData,
         "previousContracts": previousContracts,
         "previousAllocations": previousAllocations,
+        "consumedContracts": consumedContracts,
         "contracts": contracts,
         "step3": step3
     }
