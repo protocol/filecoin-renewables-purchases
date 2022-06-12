@@ -2048,19 +2048,19 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         }
     }
 
-        // Load contracts
-        startingContracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
-        for (const c of startingContracts) {
-            let recsAvailable = (typeof c.volume_MWh != "number")
-                ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
-            c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
+    // Load contracts
+    startingContracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+    for (const c of startingContracts) {
+        let recsAvailable = (typeof c.volume_MWh != "number")
+            ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+        c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
 
-            // Check if contract is matched
-            if(consumedContracts.indexOf(c.contract_id > -1))
-                c.step3_match_complete = 1
-        }
+        // Check if contract is matched
+        if(consumedContracts.indexOf(c.contract_id) > -1)
+            c.step3_match_complete = 1
+    }
 
-        let result = {
+    let result = {
         "step3": step3Header.join(",") + "\r\n" +
             Papa.unparse(step3, {
                 quotes: step3ColumnTypes.map((ct) => {return ct != 'number'}),
@@ -2271,7 +2271,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
 
         if(c.volume_MWh == 0)
             consumedContracts.push(c.contract_id)
-    
+
         return c.volume_MWh > 0
     })
     console.dir(contracts.map((c) => {return {
