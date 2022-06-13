@@ -24,7 +24,7 @@ const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
 const step6FileNameSuffix = "_step6_generationRecords.csv"
 const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
-let step2Csv, step3Csv, step6Csv, step7Csv
+let step2Csv, step3Csv, step5Csv, step6Csv, step7Csv
 
 switch (activities) {
     case 'fix-dates':
@@ -70,7 +70,7 @@ switch (activities) {
         await fs.promises.writeFile(filePath, fixedNonFloatingNumbersCsv)
 
         break
-    case 'create-step-5':
+    case 'create-step-5-old':
         attestationFolder = args[1]
         transactionFolder = args[2]
 
@@ -84,7 +84,7 @@ switch (activities) {
         }
 
         // Create step 5 CSV
-        const step5Csv = await createStep5(attestationFolder, transactionFolder)
+        step5Csv = await createStep5Old(attestationFolder, transactionFolder)
 
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
@@ -371,8 +371,8 @@ switch (activities) {
         const priorityMinersFile = args[4]
         const nercFile = args[5]
 
-        const transactionFolderPathChunks = transactionFolder.split("/")
-        const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+        transactionFolderChunks = transactionFolder.split("/")
+        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
     
         if(transactionFolder == null || minersLocationsFile == null || minersLocationsFileWithLatLng == null || priorityMinersFile == null || nercFile == null) {
             console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, miner locations with latitutde and longitude, priority miners and nerc file paths are required parameters.`)
@@ -403,6 +403,45 @@ switch (activities) {
         // Create new files
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`, step2Csv)
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, step3Csv)
+
+        break
+    case 'create-step-5':
+        transactionFolder = args[1]
+        attestationFolder = args[2]
+        const networkId = args[3]
+        const tokenizationProtocol = args[4]
+        const tokenType = args[5]
+        const smartContractAddress = args[6]
+        const batchId = args[7]
+        const format = args[8]
+
+        transactionFolderChunks = transactionFolder.split("/")
+        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
+    
+        if(transactionFolder == null || attestationFolder == null || networkId == null || tokenizationProtocol == null || tokenType == null || smartContractAddress == null || batchId == null || format == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder, attestation folder, Network Id, Tokenization protocol, Token type, Smart contract address, batch Id, and format are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Create step 5 CSV
+        step5Csv = await createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType, smartContractAddress, Number(batchId), format)
+        if(step5Csv == null) {
+            console.error(`Error! Could not create step 5 CSV.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
 
         break
     default:
@@ -600,7 +639,7 @@ function getHeaderAndColumnTypes(jsonArray) {
 }
 
 // Create step 5
-async function createStep5(attestationFolder, transactionFolder) {
+async function createStep5Old(attestationFolder, transactionFolder) {
     const attestationFolderPathChunks = attestationFolder.split("/")
     const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
 
@@ -2618,4 +2657,69 @@ async function _totalEnergyFromModel(start, end, miner){
 
 function _onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
+}
+
+// Create step 5 CSV
+async function createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType, smartContractAddress, batchId, format) {
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    let beneficiary, redemptionPurpose
+
+    const step5Header = ['"attestation_id"', '"smart_contract_address"', '"batchID"', '"network"',
+        '"zl_protocol_version"', '"minerID"', '"beneficiary"', '"redemption_purpose"', '"attestation_folder"']
+    const step5ColumnTypes = ["string", "string", "number", "number",
+        "string", "string", "string", "string", "string"]
+
+    const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    let step5 = []
+    
+    for (let index = 0; index < step3.length; index++) {
+        switch (format) {
+            case "long":
+                beneficiary = `Blockchain Network ID: ${networkId} - Tokenization Protocol: ${tokenizationProtocol} - Smart Contract Address: ${smartContractAddress} - Batch ID: ${batchId + index}`
+                redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${networkId}. The smart contract address is ${smartContractAddress} and the specific certificate batch ID is ${batchId + index}. The certificates will be created as tokens of type ${tokenType} This redemption is matched to Filecoin minerID ${step3[index]['minerID']}`
+                break
+            case "short":
+                beneficiary = `${smartContractAddress}-${batchId + index}`
+                redemptionPurpose = `${tokenizationProtocol}-NWID${networkId}-${tokenType}`
+                break
+            default:
+                console.error(`Unrecognized beneficiary format ${format}. Expected values are 'long' or 'short.`)
+                return new Promise((resolve) => {
+                    resolve(null)
+                })
+        }
+
+        step5.push({
+            attestation_id: `${transactionFolderName}_attestation_${index}`,
+            smart_contract_address: smartContractAddress,
+            batchID: batchId + index,
+            network: networkId,
+            zl_protocol_version: tokenizationProtocol,
+            minerID: step3[index].minerID,
+            beneficiary: beneficiary,
+            redemption_purpose: redemptionPurpose,
+            attestation_folder: attestationFolderName
+        })
+    }
+
+    let result = step5Header.join(",") + "\r\n" +
+        Papa.unparse(step5, {
+            quotes: step5ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
 }
