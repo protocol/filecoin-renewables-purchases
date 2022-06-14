@@ -21,6 +21,9 @@ let jsonContent
 let attestationFolder, transactionFolder
 let attestationFolderChunks, attestationFolderName
 let transactionFolderChunks, transactionFolderName
+let minersLocationsFile
+let minersLocationsFileWithLatLng
+
 const step2FileNameSuffix = "_step2_orderSupply.csv"
 const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
@@ -368,8 +371,8 @@ switch (activities) {
         break
     case 'create-step-3':
         transactionFolder = args[1]
-        const minersLocationsFile = args[2]
-        const minersLocationsFileWithLatLng = args[3]
+        minersLocationsFile = args[2]
+        minersLocationsFileWithLatLng = args[3]
         const priorityMinersFile = args[4]
         const nercFile = args[5]
 
@@ -416,6 +419,10 @@ switch (activities) {
         const smartContractAddress = args[6]
         const batchId = args[7]
         const format = args[8]
+        const evidentRedemptionFileName = args[9]
+        const redemptionsSheetName = args[10]
+        const beneficiariesSheetName = args[11]
+        minersLocationsFile = args[12]
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
@@ -427,7 +434,9 @@ switch (activities) {
         }
 
         // Create step 5 CSV
-        step5Csv = await createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType, smartContractAddress, Number(batchId), format)
+        step5Csv = await createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType,
+            smartContractAddress, Number(batchId), format, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
+            minersLocationsFile)
         if(step5Csv == null) {
             console.error(`Error! Could not create step 5 CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -444,33 +453,6 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
-
-        break
-    case 'create-evident-redemption-file':
-        transactionFolder = args[1]
-        const evidentRedemptionFileName = args[2]
-        const redemptionsSheetName = args[3]
-        const beneficiariesSheetName = args[4]
-
-        transactionFolderChunks = transactionFolder.split("/")
-        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
-    
-        if(transactionFolder == null || evidentRedemptionFileName == null) {
-            console.error(`Error! Bad arguments provided. Transaction folder and Evident redemption file name are required parameters.`)
-            await new Promise(resolve => setTimeout(resolve, 100))
-            process.exit()
-        }
-
-        try {
-            // Bakup existing file
-            await fs.promises.copyFile(`${transactionFolder}/${evidentRedemptionFileName}`, `${transactionFolder}/${evidentRedemptionFileName}.bak-${(new Date()).toISOString()}`)
-        }
-        catch (error) {
-            console.log(error)            
-        }
-
-        // Create (new) Evident redemption file
-        await createEvidentRedemptionFile(transactionFolder, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName)
 
         break
     default:
@@ -2689,7 +2671,9 @@ function _onlyUnique(value, index, self) {
 }
 
 // Create step 5 CSV
-async function createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType, smartContractAddress, batchId, format) {
+async function createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType,
+    smartContractAddress, batchId, format, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
+    minersLocationsFile) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -2710,20 +2694,47 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
     })
     const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
     let step5 = []
+    let evidentIndex = 0
+    let loadFilePath, saveFilePath, buf, workbook, redemptionWorkSheet, newBeneficiariesWorkSheet
+    let syntheticLocations
+
+    if(evidentRedemptionFileName != null && redemptionsSheetName != null && beneficiariesSheetName != null
+        && minersLocationsFile != null) {
+        // Redemption file path
+        loadFilePath = `${transactionFolder}/${evidentRedemptionFileName}`
+        saveFilePath = `${transactionFolder}/fulfilled-${evidentRedemptionFileName}`
+        // Load redemption xls into a buffer
+        buf = fs.readFileSync(loadFilePath)
+        // Load buffer into a workbook
+        workbook = xlsxRead(buf)
+        // Get redemptions worksheet
+        redemptionWorkSheet = workbook.Sheets[redemptionsSheetName]
+        // Get new beneficiaries worksheet
+        newBeneficiariesWorkSheet = workbook.Sheets[beneficiariesSheetName]
+
+        const syntheticLocationsFilePath = `./${transactionFolder}/_assets/${minersLocationsFile}`
+        syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+        syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
+    }
     
     for (let contractIndex = 0; contractIndex < step2.length; contractIndex++) {
         let attestations = []
-        const contract = step2[contractIndex].contract_id
-        const productType = step2[contractIndex].productType
+        const contract = step2[contractIndex]
+        const contractId = contract.contract_id
+        const productType = contract.productType
         if(productType.toUpperCase() == "IREC") {
             // Automatic (1:1)
-            const allocations = step3.filter((a) => {return a.contract_id == contract})
+            const allocations = step3.filter((a) => {return a.contract_id == contractId})
             attestations = allocations.map((a) => {return {
                 "networkId": networkId,
                 "tokenizationProtocol": tokenizationProtocol,
                 "smartContractAddress": smartContractAddress,
                 "tokenType": tokenType,
-                "minerId": a.minerID
+                "minerId": a.minerID,
+                "RECs": a.volume_MWh
             }})
         }
         else {
@@ -2733,7 +2744,8 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                 "tokenizationProtocol": tokenizationProtocol,
                 "smartContractAddress": smartContractAddress,
                 "tokenType": tokenType,
-                "minerId": null
+                "minerId": null,
+                "RECs": null
             }]
         }
 
@@ -2766,7 +2778,46 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                 redemption_purpose: redemptionPurpose,
                 attestation_folder: attestationFolderName
             })
+
+            if(evidentRedemptionFileName == null || redemptionsSheetName == null || beneficiariesSheetName == null
+                || minersLocationsFile == null)
+                continue
+
+            if(attestation.minerId != null) {
+                // Find miner location
+                let location
+                let locationObjects = syntheticLocations.filter((l) => {
+                    return l.provider == attestation.minerId && l.region.indexOf(contract.country) == 0
+                })
+                if(locationObjects.length == 0) {
+                    location = null
+                }
+                else {
+                    location = locationObjects[0].region
+                }
+
+                // Add item to evident redemptions work sheet
+                redemptionWorkSheet = xlsxUtils.sheet_add_aoa(redemptionWorkSheet, [
+                    [beneficiary, contract.country, location, , attestation.RECs, contract.reportingStart, contract.reportingEnd, redemptionPurpose]
+                ], { origin: `B${evidentIndex+3}` })
+
+                // Add item to evident new beneficiaries work sheet
+                newBeneficiariesWorkSheet = xlsxUtils.sheet_add_aoa(newBeneficiariesWorkSheet, [
+                    [beneficiary, contract.country, location]
+                ], { origin: `A${evidentIndex+4}` })
+
+                evidentIndex++
+            }
         }
+    }
+
+    if(evidentRedemptionFileName != null && redemptionsSheetName != null && beneficiariesSheetName != null
+        && minersLocationsFile != null) {
+        workbook.Sheets[redemptionsSheetName] = redemptionWorkSheet
+        workbook.Sheets[beneficiariesSheetName] = newBeneficiariesWorkSheet
+        //    buf = xlsxWrite(workbook, {type: "buffer", bookType: "xlsb"})
+        //    workbook = xlsxWriteFile(evidentRedemptionFileName, buf)
+        xlsxWriteFile(workbook, saveFilePath)
     }
 
     let result = step5Header.join(",") + "\r\n" +
@@ -2784,38 +2835,4 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
     return new Promise((resolve) => {
         resolve(result)
     })
-}
-
-async function createEvidentRedemptionFile(transactionFolder, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName) {
-    const transactionFolderPathChunks = transactionFolder.split("/")
-    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
-
-    // Redemption file path
-    const filePath = `${transactionFolder}/${evidentRedemptionFileName}`
-
-    // Load redemption xls into a buffer
-    let buf = fs.readFileSync(filePath)
-
-    // Load buffer into a workbook
-    let workbook = xlsxRead(buf)
-
-    // Get redemptions worksheet
-    let redemptionWorkSheet = workbook.Sheets[redemptionsSheetName]
-
-    // Get step 5 CSV
-    const step5 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
-
-    for (let index = 0; index < step5.length; index++) {
-        const redemption = step5[index]
-        redemptionWorkSheet = xlsxUtils.sheet_add_aoa(redemptionWorkSheet, [
-            [ redemption["beneficiary"] ]
-        ], { origin: `B${index+3}` })
-    }
-
-    workbook.Sheets[redemptionsSheetName] = redemptionWorkSheet
-
-//    buf = xlsxWrite(workbook, {type: "buffer", bookType: "xlsb"})
-//    workbook = xlsxWriteFile(evidentRedemptionFileName, buf)
-
-    xlsxWriteFile(workbook, filePath)
 }
