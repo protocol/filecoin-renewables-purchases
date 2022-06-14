@@ -6,6 +6,8 @@ import axios from 'axios'
 import cat from 'countries-and-timezones'
 import all from 'it-all'
 import HL from './leaflet-headless.cjs'
+import { read as xlsxRead, utils as xlsxUtils, write as xlsxWrite, writeFile as xlsxWriteFile, set_fs as xlsxSetFS } from "xlsx/xlsx.mjs"
+xlsxSetFS(fs)
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/csv-${(new Date()).toISOString()}.log`)
@@ -442,6 +444,33 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
+
+        break
+    case 'create-evident-redemption-file':
+        transactionFolder = args[1]
+        const evidentRedemptionFileName = args[2]
+        const redemptionsSheetName = args[3]
+        const beneficiariesSheetName = args[4]
+
+        transactionFolderChunks = transactionFolder.split("/")
+        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
+    
+        if(transactionFolder == null || evidentRedemptionFileName == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder and Evident redemption file name are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        try {
+            // Bakup existing file
+            await fs.promises.copyFile(`${transactionFolder}/${evidentRedemptionFileName}`, `${transactionFolder}/${evidentRedemptionFileName}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)            
+        }
+
+        // Create (new) Evident redemption file
+        await createEvidentRedemptionFile(transactionFolder, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName)
 
         break
     default:
@@ -2674,37 +2703,70 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
     const step5ColumnTypes = ["string", "string", "number", "number",
         "string", "string", "string", "string", "string"]
 
+    let step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
+    // Filter only ones already matched against miner IDs
+    step2 = step2.filter((c) => {
+        return c.step3_match_complete == 1
+    })
     const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
     let step5 = []
     
-    for (let index = 0; index < step3.length; index++) {
-        switch (format) {
-            case "long":
-                beneficiary = `Blockchain Network ID: ${networkId} - Tokenization Protocol: ${tokenizationProtocol} - Smart Contract Address: ${smartContractAddress} - Batch ID: ${batchId + index}`
-                redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${networkId}. The smart contract address is ${smartContractAddress} and the specific certificate batch ID is ${batchId + index}. The certificates will be created as tokens of type ${tokenType} This redemption is matched to Filecoin minerID ${step3[index]['minerID']}`
-                break
-            case "short":
-                beneficiary = `${smartContractAddress}-${batchId + index}`
-                redemptionPurpose = `${tokenizationProtocol}-NWID${networkId}-${tokenType}`
-                break
-            default:
-                console.error(`Unrecognized beneficiary format ${format}. Expected values are 'long' or 'short.`)
-                return new Promise((resolve) => {
-                    resolve(null)
-                })
+    for (let contractIndex = 0; contractIndex < step2.length; contractIndex++) {
+        let attestations = []
+        const contract = step2[contractIndex].contract_id
+        const productType = step2[contractIndex].productType
+        if(productType.toUpperCase() == "IREC") {
+            // Automatic (1:1)
+            const allocations = step3.filter((a) => {return a.contract_id == contract})
+            attestations = allocations.map((a) => {return {
+                "networkId": networkId,
+                "tokenizationProtocol": tokenizationProtocol,
+                "smartContractAddress": smartContractAddress,
+                "tokenType": tokenType,
+                "minerId": a.minerID
+            }})
+        }
+        else {
+            // Multiple minerIds per attestation
+            attestations = [{
+                "networkId": networkId,
+                "tokenizationProtocol": tokenizationProtocol,
+                "smartContractAddress": smartContractAddress,
+                "tokenType": tokenType,
+                "minerId": null
+            }]
         }
 
-        step5.push({
-            attestation_id: `${transactionFolderName}_attestation_${index}`,
-            smart_contract_address: smartContractAddress,
-            batchID: batchId + index,
-            network: networkId,
-            zl_protocol_version: tokenizationProtocol,
-            minerID: step3[index].minerID,
-            beneficiary: beneficiary,
-            redemption_purpose: redemptionPurpose,
-            attestation_folder: attestationFolderName
-        })
+        for (let attestationIndex = 0; attestationIndex < attestations.length; attestationIndex++) {
+            const attestation = attestations[attestationIndex]
+            switch (format) {
+                case "long":
+                    beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batchId + step5.length}`
+                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${step5.length}. The certificates will be created as tokens of type ${attestation.tokenType} This redemption is matched to Filecoin minerID ${(attestation.minerId != null) ? attestation.minerId : ''}`
+                    break
+                case "short":
+                    beneficiary = `${attestation.smartContractAddress}-${batchId + step5.length}`
+                    redemptionPurpose = `${attestation.tokenizationProtocol}-NWID${attestation.networkId}-${attestation.tokenType}`
+                    break
+                default:
+                    console.error(`Unrecognized beneficiary format ${format}. Expected values are 'long' or 'short.`)
+                    return new Promise((resolve) => {
+                        resolve(null)
+                    })
+            }
+
+            step5.push({
+                attestation_id: `${transactionFolderName}_attestation_${step5.length}`,
+                smart_contract_address: smartContractAddress,
+                batchID: batchId + step5.length,
+                network: networkId,
+                zl_protocol_version: tokenizationProtocol,
+                minerID: attestation.minerId,
+                beneficiary: beneficiary,
+                redemption_purpose: redemptionPurpose,
+                attestation_folder: attestationFolderName
+            })
+        }
     }
 
     let result = step5Header.join(",") + "\r\n" +
@@ -2722,4 +2784,38 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
     return new Promise((resolve) => {
         resolve(result)
     })
+}
+
+async function createEvidentRedemptionFile(transactionFolder, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName) {
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    // Redemption file path
+    const filePath = `${transactionFolder}/${evidentRedemptionFileName}`
+
+    // Load redemption xls into a buffer
+    let buf = fs.readFileSync(filePath)
+
+    // Load buffer into a workbook
+    let workbook = xlsxRead(buf)
+
+    // Get redemptions worksheet
+    let redemptionWorkSheet = workbook.Sheets[redemptionsSheetName]
+
+    // Get step 5 CSV
+    const step5 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
+
+    for (let index = 0; index < step5.length; index++) {
+        const redemption = step5[index]
+        redemptionWorkSheet = xlsxUtils.sheet_add_aoa(redemptionWorkSheet, [
+            [ redemption["beneficiary"] ]
+        ], { origin: `B${index+3}` })
+    }
+
+    workbook.Sheets[redemptionsSheetName] = redemptionWorkSheet
+
+//    buf = xlsxWrite(workbook, {type: "buffer", bookType: "xlsb"})
+//    workbook = xlsxWriteFile(evidentRedemptionFileName, buf)
+
+    xlsxWriteFile(workbook, filePath)
 }
