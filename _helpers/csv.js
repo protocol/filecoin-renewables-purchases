@@ -2753,8 +2753,8 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
             const attestation = attestations[attestationIndex]
             switch (format) {
                 case "long":
-                    beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batchId + step5.length}`
-                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${step5.length}. The certificates will be created as tokens of type ${attestation.tokenType} This redemption is matched to Filecoin minerID ${(attestation.minerId != null) ? attestation.minerId : ''}`
+                    beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batchId + step5.length} ${(attestation.minerId != null) ? '- Filecoin minerID ' + attestation.minerId : ''}`
+                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${step5.length}. The certificates will be created as tokens of type ${attestation.tokenType} ${(attestation.minerId != null) ? 'This redemption is matched to Filecoin minerID ' + attestation.minerId : ''}`
                     break
                 case "short":
                     beneficiary = `${attestation.smartContractAddress}-${batchId + step5.length}`
