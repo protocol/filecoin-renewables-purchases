@@ -81,7 +81,7 @@ switch (activities) {
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
-    
+
         if(attestationFolder == null || transactionFolder == null) {
             console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -115,7 +115,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -143,7 +143,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -170,7 +170,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -197,7 +197,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -225,7 +225,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -253,7 +253,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -292,7 +292,7 @@ switch (activities) {
             await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -320,7 +320,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -348,7 +348,7 @@ switch (activities) {
             await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -378,7 +378,7 @@ switch (activities) {
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
-    
+
         if(transactionFolder == null || minersLocationsFile == null || minersLocationsFileWithLatLng == null || priorityMinersFile == null || nercFile == null) {
             console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, miner locations with latitutde and longitude, priority miners and nerc file paths are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -402,7 +402,7 @@ switch (activities) {
             await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new files
@@ -426,7 +426,7 @@ switch (activities) {
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
-    
+
         if(transactionFolder == null || attestationFolder == null || networkId == null || tokenizationProtocol == null || tokenType == null || smartContractAddress == null || batchId == null || format == null) {
             console.error(`Error! Bad arguments provided. Transaction folder, attestation folder, Network Id, Tokenization protocol, Token type, Smart contract address, batch Id, and format are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -448,7 +448,7 @@ switch (activities) {
             await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
 
         // Create new file
@@ -599,7 +599,7 @@ async function fixNonFloatingNumbers(jsonContent, numbersColumns, base) {
         }
         line++
     }
-    
+
     // Set valid Papa unparse config
     let header = getHeaderAndColumnTypes(jsonContent).header
     const columnTypes = getHeaderAndColumnTypes(jsonContent).types
@@ -661,11 +661,11 @@ async function createStep5Old(attestationFolder, transactionFolder) {
         '"zl_protocol_version"', '"minerID"', '"beneficiary"', '"redemption_purpose"', '"attestation_folder"']
     const step5ColumnTypes = ["string", "string", "number", "number",
         "string", "string", "string", "string", "string"]
-    
+
     let step5 = []
-    
+
     const pdfs = await globby(`${attestationFolder}/*.pdf`)
-    
+
     for (let index = 1; index <= pdfs.length; index++) {
         step5.push({
             attestation_id: `${transactionFolderName}_attestation_${index}`,
@@ -710,11 +710,11 @@ async function createStep63D(attestationFolder, transactionFolder) {
         "string", "string", "number", "string", "number",
         "string", "string", "string", "string", "number", "string", "string",
         "string", "string", "number", "string", "number"]
-    
+
     let step6 = []
-    
+
     const pdfs = await globby(`${attestationFolder}/*.pdf`)
-    
+
     let attestationIndex = 1
     for (const pdf of pdfs) {
         const pdfPathChunks = pdf.split("/")
@@ -914,9 +914,9 @@ async function createStep73D(attestationFolder, transactionFolder) {
 
     const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
     const step7ColumnTypes = ["string", "number", "string", "string", "string"]
-    
+
     let step7 = []
-    
+
     // Grab step3, 2 and 6 CSVs
     const step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
     const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
@@ -968,7 +968,7 @@ async function createStep73D(attestationFolder, transactionFolder) {
                         contract: contractId,
                         minerID: minerID
                     })
-                    
+
                     // Deduct from available RECs
                     certificate.volume_Wh -= volumeMWh * 1000000
 
@@ -985,7 +985,7 @@ async function createStep73D(attestationFolder, transactionFolder) {
                         contract: contractId,
                         minerID: minerID
                     })
-                    
+
                     // Deduct from needed RECs
                     volumeMWh -= certificate.volume_Wh/1000000
 
@@ -1005,7 +1005,7 @@ async function createStep73D(attestationFolder, transactionFolder) {
                     contract: contractId,
                     minerID: minerID
                 })
-                
+
                 // Deduct from available RECs
                 certificate.volume_Wh -= volumeMWh * 1000000
 
@@ -1065,7 +1065,7 @@ async function renameAttestationsSP(attestationFolder) {
     const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
 
     const pdfs = await globby(`${attestationFolder}/*.pdf`)
-    
+
     for (const pdf of pdfs) {
         const attestationFilePathChunks = pdf.split("/")
         const attestationFileName = attestationFilePathChunks[attestationFilePathChunks.length-1]
@@ -1078,7 +1078,7 @@ async function renameAttestationsSP(attestationFolder) {
             await fs.promises.rename(pdf, `${attestationFolder}/${attestationFileName}.pdf`)
         }
         catch (error) {
-            console.log(error)            
+            console.log(error)
         }
     }
 
@@ -1154,13 +1154,13 @@ async function createStep6SP(attestationFolder, transactionFolder) {
         "string", "string", "number", "string", "number",
         "string", "string", "string", "string", "number", "string", "string",
         "string", "string", "number", "string", "number"]
-    
+
     let step6 = []
-    
+
     const pdfs = await globby(`${attestationFolder}/*.pdf`)
     const step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
     const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
-    
+
     for (const pdf of pdfs) {
         const pdfPathChunks = pdf.split("/")
         const pdfName = pdfPathChunks[pdfPathChunks.length-1]
@@ -1222,12 +1222,12 @@ async function createStep7SP(attestationFolder, transactionFolder) {
 
     const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
     const step7ColumnTypes = ["string", "number", "string", "string", "string"]
-    
+
     let step7 = []
-    
+
     // Grab 3 CSV
     const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
-    
+
     for (const allocation of step3) {
         const allocationId = allocation.allocation_id
         const allocationIdChunks = allocationId.split("_")
@@ -1265,7 +1265,7 @@ async function listNonMatchingDates3D(attestationFolder, transactionFolder) {
 
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
-    
+
     // Grab step  2, 3, 6 and 7 CSVs
     const step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
     const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
@@ -1335,9 +1335,9 @@ async function createStep73Dmultistep(attestationFolder, transactionFolder) {
 
     const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
     const step7ColumnTypes = ["string", "number", "string", "string", "string"]
-    
+
     let step7 = []
-    
+
     // Grab step 2, 3 and 6 CSVs
     let step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
     let step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
@@ -1368,14 +1368,14 @@ async function createStep73Dmultistep(attestationFolder, transactionFolder) {
     for (const r of remained) {
         console.info(`${r.certificate}: ${r.volume_Wh / 1000000} (${r.country}, ${r.region}, ${r.generationStart} - ${r.generationEnd})`)
     }
-    
+
     // Calculate what remained unmatched
     const unmatched = step2.filter((contract) => {return contract.volume_MWh > 0})
     console.info(`\r\nRemained unsuplied:`)
     for (const r of unmatched) {
         console.info(`${r.contract_id}: ${r.volume_MWh} (${r.country}, ${r.region}, ${r.reportingStart} - ${r.reportingEnd})`)
     }
-    
+
     let result = step7Header.join(",") + "\r\n" +
         Papa.unparse(step7, {
             quotes: step7ColumnTypes.map((ct) => {return ct != 'number'}),
@@ -1461,7 +1461,7 @@ function _step73DItterateCertificates(step2, step3, step6, step7, transactionFol
                 for (const contract of matches) {
                     if(contract.match)
                         continue    // if we already matched this contract against a certificate
-                    contract.match = certificateId 
+                    contract.match = certificateId
                     const allocations = step3.filter((a) => {return a.contract_id == contract.contract_id})
                         .sort((a, b) => {return a.volume_MWh - b.volume_MWh})
                     let allocationsToRemove = []
@@ -1868,7 +1868,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         })).data
 //            .filter((m) => {return m.suspended == false})   // suspended category is temporary, they did use the energy to seal and store data so include them
             .map((m) => {return m.addr})
-        
+
         const syntheticLocationsFilePath = `./${transactionFolder}/_assets/${minersLocationsFile}`
         syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
             encoding:'utf8',
@@ -1877,7 +1877,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
 
         let syntheticLocationsMiners = syntheticLocations
-            .filter((m) => {return m.delegate == null}) // try with delegates to see are all estuary miner's having locations 
+            .filter((m) => {return m.delegate == null}) // try with delegates to see are all estuary miner's having locations
             .map((m) => {return m.provider})
         // Remove duplicates
         syntheticLocationsMiners = syntheticLocationsMiners.filter(_onlyUnique)
@@ -1944,14 +1944,14 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
             syntheticLocationsObj[rec["provider"]] = [{
                 "country": loc[0],
                 "state": (loc[1] != undefined) ? ((loc[1] != "XX") ? loc[1] : null) : null,
-                "hasDelegate": rec["delegate"] != null 
+                "hasDelegate": rec["delegate"] != null
             }]
         }
         else {
             syntheticLocationsObj[rec["provider"]].push({
                 "country": loc[0],
                 "state": (loc[1] != undefined) ? ((loc[1] != "XX") ? loc[1] : null) : null,
-                "hasDelegate": rec["delegate"] != null 
+                "hasDelegate": rec["delegate"] != null
             })
         }
     }
@@ -1981,7 +1981,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
     while(contracts.length && minersBatch && minersBatch.length) {
         console.log(`minersBatchIndex ${minersBatchIndex}, minersBatch.length: ${minersBatch.length},\n minersBatch:`)
         console.dir(minersBatch, {depth: null})
-        
+
         let step = await _consumeContracts(transactionFolderName, minersBatch, minersEnergyData,
             syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts, consumedContracts, contracts, step3)
         minersEnergyData = step.minersEnergyData
@@ -2065,7 +2065,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
                 minersInRadius = minersInRadius
                     .map((m) => {return m.provider})
                 console.dir(minersInRadius, {depth: null})
-                
+
                 let step = await _consumeContractRegardlessRegion(transactionFolderName, minersInRadius, minersEnergyData,
                     previousAllocations, previousContracts, contract, step3)
                 contract = step.contract
@@ -2083,7 +2083,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
 
                 if(c.volume_MWh == 0)
                     consumedContracts.push(c.contract_id)
-                
+
                 return c.volume_MWh > 0
             })
             console.dir(contracts.map((c) => {return {
@@ -2153,7 +2153,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                     "country": m.country,
                     "state": m.state,
                     "region": (m.country != "US") ? null : await _getNercRegion(m.state, nercFilePath),
-                    "hasDelegate": m.hasDelegate 
+                    "hasDelegate": m.hasDelegate
                 }
         }))
         return {
@@ -2268,7 +2268,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                     palloc = await all(palloc)
                     console.log(`Overlapping allocations (volumes after decreasing partial overlapping):`)
                     console.dir(palloc, {depth: null})
-    
+
                     const recsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
 
                     console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner.minerId}
@@ -2333,7 +2333,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
         "reportingEnd": c.reportingEnd
     }}), {depth: null})
     console.log(`Remaining after latest miner batch: ${contracts.length}`)
-    
+
     return {
         "minersEnergyData": minersEnergyData,
         "previousContracts": previousContracts,
@@ -2489,7 +2489,7 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
                 previousContracts.push(contract)
         }
     }
-    
+
     return {
         "contract": contract,
         "minersEnergyData": minersEnergyData,
@@ -2719,7 +2719,7 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
         })
         syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
     }
-    
+
     for (let contractIndex = 0; contractIndex < step2.length; contractIndex++) {
         let attestations = []
         const contract = step2[contractIndex]
@@ -2754,7 +2754,7 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
             switch (format) {
                 case "long":
                     beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batchId + step5.length} ${(attestation.minerId != null) ? '- Filecoin minerID ' + attestation.minerId : ''}`
-                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${step5.length}. The certificates will be created as tokens of type ${attestation.tokenType} ${(attestation.minerId != null) ? 'This redemption is matched to Filecoin minerID ' + attestation.minerId : ''}`
+                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${batchId + step5.length}. The certificates will be created as tokens of type ${attestation.tokenType} ${(attestation.minerId != null) ? 'This redemption is matched to Filecoin minerID ' + attestation.minerId : ''}`
                     break
                 case "short":
                     beneficiary = `${attestation.smartContractAddress}-${batchId + step5.length}`
