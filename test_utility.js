@@ -87,8 +87,81 @@ function test_step_7(delivery_folder, step_7_filename){
 
 }
 
-module.exports = {test_step_7}
+
+async function test_step_3(folder, locations){
+  console.log('runnning')
+
+  step2_file=folder+'_step2_orderSupply.csv',
+  step3_file=folder+'_step3_match.csv',
+  step5_file=folder+'_step5_redemption_information.csv'
+
+  const step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  const step3_data = parse(fs.readFileSync(folder+'/'+step3_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  const step5_data = parse(fs.readFileSync(folder+'/'+step5_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+
+  console.log(step2_data[0])
+
+
+  locs = require(locations)
+  // console.log(locs.providerLocations[1])
+
+  step3_data_wLocs = step3_data.map(elem => {
+    minerID_locs_dict = locs.providerLocations.filter(x => x.provider == elem.minerID)
+    minerID_locs = minerID_locs_dict.reduce((result, x) => result.concat(x.region), [])
+    minerID_country = minerID_locs_dict.reduce((result, x) => result.concat(x.country), [])
+    // console.log(minerID_locs)
+    elem['location']=minerID_locs
+    elem['country']=minerID_country
+    return elem
+  })
+
+  // Check that the contract totals match between step 2 and 3
+  // Each line in step 2 maps to one or more lines in step 3
+  console.log('')
+  step2_data.forEach(function (contractLine, index) {
+
+    // console.log(contractLine)
+
+    // Check that the totals add up for each contract
+    console.log(`Checking ${contractLine.contract_id}...`)
+    correspondingAllocations = step3_data_wLocs.filter(elem => elem.contract_id == contractLine.contract_id)
+    allocations_thisLine = correspondingAllocations.reduce((prev, elem) => prev+Number(elem.volume_MWh), 0)
+    if (!(allocations_thisLine == contractLine.volume_MWh)){
+      console.log(`   Warning: ${contractLine.contract_id} step 3 allocations of ${allocations_thisLine} MWh don't match step 2 contract volume of ${contractLine.volume_MWh} MWh`)
+    } else {console.log(`   Total allocation agrees between steps 2 and 3`)}
+
+    correspondingAllocations.forEach(function (allocation, allocidx) {
+      // console.log(allocation)
+      if (allocation.country.length == 0) {console.log(`   No country for ${allocation.allocation_id}`)}
+
+      if (!(allocation.country.includes(contractLine.country))){
+        console.log(`   Warning: for ${allocation.allocation_id},  ${allocation.minerID} location is ${allocation.country} but contract is ${contractLine.country}`)
+      }
+
+      // allocation.country.forEach(function(alloc_country, alloc_country_idx){
+      //   if (!(alloc_country == contractLine.country)){
+      //     console.log(`   Warning: for ${allocation.allocation_id},  ${allocation.minerID} location is ${allocation.country} but contract is ${contractLine.country}`)
+      //   }
+      //   // console.log(alloc_country)
+      // })
+
+      if (!(contractLine.region == '')){
+        console.log(`Check region for ${contractLine.contract_id}`)
+      }
+
+    })
+
+    console.log('')
+  });
+
+
+
+
+
+}
+
+module.exports = {test_step_7, test_step_3}
 
 // test_step_7('20210831_delivery', '20210831_delivery_step7_certificate_to_contract.csv')
 //test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')
-test_step_7('20211231_3D_delivery', '20211231_3D_delivery_step7_certificate_to_contract.csv')
+// test_step_7('20211231_3D_delivery', '20211231_3D_delivery_step7_certificate_to_contract.csv')
