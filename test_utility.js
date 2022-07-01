@@ -88,8 +88,7 @@ function test_step_7(delivery_folder, step_7_filename){
 }
 
 
-async function test_step_3(folder, locations){
-  console.log('runnning')
+async function test_step_3(folder){
 
   step2_file=folder+'_step2_orderSupply.csv',
   step3_file=folder+'_step3_match.csv',
@@ -99,10 +98,8 @@ async function test_step_3(folder, locations){
   const step3_data = parse(fs.readFileSync(folder+'/'+step3_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   const step5_data = parse(fs.readFileSync(folder+'/'+step5_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
 
-  console.log(step2_data[0])
 
-
-  locs = require(locations)
+  locs = require('./'+folder+'/_assets/synthetic-country-state-province-locations-latest.json')
   // console.log(locs.providerLocations[1])
 
   step3_data_wLocs = step3_data.map(elem => {
@@ -135,7 +132,7 @@ async function test_step_3(folder, locations){
       if (allocation.country.length == 0) {console.log(`   No country for ${allocation.allocation_id}`)}
 
       if (!(allocation.country.includes(contractLine.country))){
-        console.log(`   Warning: for ${allocation.allocation_id},  ${allocation.minerID} location is ${allocation.country} but contract is ${contractLine.country}`)
+        console.log(`   Warning: for ${allocation.allocation_id}, ${allocation.minerID} location is ${allocation.country} but contract is ${contractLine.country}`)
       }
 
       // allocation.country.forEach(function(alloc_country, alloc_country_idx){
@@ -146,7 +143,7 @@ async function test_step_3(folder, locations){
       // })
 
       if (!(contractLine.region == '')){
-        console.log(`Check region for ${contractLine.contract_id}`)
+        console.log(`   Check region for ${contractLine.contract_id}: ${allocation.minerID} region is ${allocation.location} and contract is ${contractLine.region}`)
       }
 
     })
