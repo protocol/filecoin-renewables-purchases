@@ -125,7 +125,7 @@ async function test_step_3(folder){
     allocations_thisLine = correspondingAllocations.reduce((prev, elem) => prev+Number(elem.volume_MWh), 0)
     if (!(allocations_thisLine == contractLine.volume_MWh)){
       console.log(`   Warning: ${contractLine.contract_id} step 3 allocations of ${allocations_thisLine} MWh don't match step 2 contract volume of ${contractLine.volume_MWh} MWh`)
-    } else {console.log(`   Total allocation agrees between steps 2 and 3`)}
+    } else {console.log(`   Total allocation of ${allocations_thisLine} MWh agrees between steps 2 and 3`)}
 
     correspondingAllocations.forEach(function (allocation, allocidx) {
       // console.log(allocation)

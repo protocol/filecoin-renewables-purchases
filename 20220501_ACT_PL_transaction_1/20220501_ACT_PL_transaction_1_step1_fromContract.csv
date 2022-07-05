@@ -2,7 +2,7 @@ Location,start,end,MWh,Product,Tech
 Netherlands 1H21,2021-01-01,2021-06-30,148.00,GoO,Wind/Solar
 Netherlands 2H21,2021-07-01,2021-12-31,"1,771.00",GoO,Wind/Solar
 Germany Q1 (9750),2021-01-01,2021-03-31,320.00,GoO,Wind/Solar
-Germany Q2 (8281),2021-01-04,2021-06-30,"8,281.00",GoO,Wind/Solar
+Germany Q2 (8281),2021-04-01,2021-06-30,"8,281.00",GoO,Wind/Solar
 Germany Q4 (7087),2021-10-01,2021-12-31,"5,974.00",GoO,Wind/Solar
 France 2021,2021-01-01,2021-12-31,91.00,GoO,Wind/Solar
 Belgium 1H21,2021-01-01,2021-06-30,173.00,GoO,Wind/Solar
