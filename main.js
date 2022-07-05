@@ -33,8 +33,9 @@ SP_FF_transaction_2_IREC_contracts = ['20220607_SP_FF_transaction_2_contract_1',
 
 // gen5(ACT_PL_transaction_1_folder, ACT_PL_transaction_1_IREC_contracts, smart_contract_id, attestation_folder)
 // gen5(SP_FF_transaction_1_folder, SP_FF_transaction_1_IREC_contracts, smart_contract_id, attestation_folder)
-gen5(SP_FF_transaction_2_folder, SP_FF_transaction_2_IREC_contracts, smart_contract_id, attestation_folder)
+// gen5(SP_FF_transaction_2_folder, SP_FF_transaction_2_IREC_contracts, smart_contract_id, attestation_folder)
 
+test_utilities.test_step_5()
 
 // Run checks
 // folder = '20220318_order'

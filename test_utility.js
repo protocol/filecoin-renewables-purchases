@@ -151,13 +151,118 @@ async function test_step_3(folder){
     console.log('')
   });
 
+}
+
+// Test all step5 files
+// For each transaction, make sure the total volume for step5 equals the contract volume
+// For automatic redemptions, make sure volume in step5 matches volume in step3
+// For each smart contract, make sure batch numbers are sequential (no repeats or gaps)
+async function test_step_5(){
+
+  // Look for all the step5 files we can find
+  step5_filenames = []
+  step5_to_folder = {}
+  folder_to_step5 = {}
+  const transaction_array = parse(fs.readFileSync('all_transactions.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  var all_allocations = []
+  transaction_array.forEach(function(transaction, idx){
+    folder_to_step5[transaction.transaction_folder] = []
+    try{
+      newData = parse(fs.readFileSync(transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_manual.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      console.log(`Found ${transaction.transaction_folder+'_step5_redemption_information_manual.csv'}`)
+      step5_filenames.push(transaction.transaction_folder+'_step5_redemption_information_manual.csv')
+      step5_to_folder[transaction.transaction_folder+'_step5_redemption_information_manual.csv'] = transaction.transaction_folder
+      folder_to_step5[transaction.transaction_folder].push(transaction.transaction_folder+'_step5_redemption_information_manual.csv')
+      all_allocations = all_allocations.concat(newData)}catch{}
+    try{
+      newData = parse(fs.readFileSync(transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_automatic.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      console.log(`Found ${transaction.transaction_folder+'_step5_redemption_information_automatic.csv'}`)
+      step5_filenames.push(transaction.transaction_folder+'_step5_redemption_information_automatic.csv')
+      folder_to_step5[transaction.transaction_folder].push(transaction.transaction_folder+'_step5_redemption_information_automatic.csv')
+      step5_to_folder[transaction.transaction_folder+'_step5_redemption_information_automatic.csv'] = transaction.transaction_folder
+      all_allocations = all_allocations.concat(newData)
+    }catch{}
+  })
+
+  console.log(folder_to_step5)
+
+  // Compare the step5 files we found to step 2 contracts
+  folders = Object.keys(folder_to_step5)
+  folders.forEach(function(folder, idx){
+    folder_contracts_fully_allocated = true
+    console.log('')
+    console.log(`Comparing step2 to step5 in folder ${folder}`)
+
+    // Load data for the step5 file(s)
+    step5_filenames = folder_to_step5[folder]
+    step5_data = step5_filenames.reduce((prev, elem)=>{
+      newData = parse(fs.readFileSync(folder+'/'+elem, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      return prev.concat(newData)
+    },[])
+
+    // Check whether we have volumes.
+    step5_data_keys = Object.keys(step5_data[0])
+    if(!(step5_data_keys.includes('volume_required'))){console.log('  > no volume key (old csv version?), cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
+      if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
+
+
+        // Load data for the step2 file
+        step2_file = folder+'_step2_orderSupply.csv'
+        step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+
+        // For every contract, see whether the volume matches
+        step2_data.forEach(function(contract, contractidx){
+          corresponding_vol = step5_data.filter(x=> x.contract_id == contract.contract_id)
+          if(corresponding_vol.length == 0){console.log(`  >${contract.contract_id} not yet allocated`); folder_contracts_fully_allocated = false} else{
+            corresponding_total = corresponding_vol.reduce((prev, elem)=> {
+              return prev + Number(elem.volume_required)},0)
+            if(!(corresponding_total==contract.volume_MWh)){
+              console.log(`  > Mismatch: ${contract.contract_id}: step 5 has ${corresponding_total} MWh, step2 has ${contract.volume_MWh} MWh`)
+              folder_contracts_fully_allocated = false
+            }
+          }
+        })
 
 
 
+      }
+    }
+    if(folder_contracts_fully_allocated){console.log(`   Compared step 2 and 5: all ${folder} contracts appear fully allocated!`)}
+  })
+
+  // // Test each step5 file by comparing it to steps 2 and 3
+  // step5_filenames.forEach(function(filename, idx){
+  //
+  //   console.log('')
+  //   console.log(`Testing file ${filename}`)
+  //   folder = step5_to_folder[filename]
+  //
+  //   // Load data. Check whether we have volumes.
+  //   step5_data = parse(fs.readFileSync(folder+'/'+filename, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+  //   if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to steps 2 and 3')} else{
+  //
+  //     // Otherwise, load steps 2 and 3 for comparison
+  //     step2_file = folder+'_step2_orderSupply.csv'
+  //     step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  //     step3_file = folder+'_step3_match.csv'
+  //     step3_data = parse(fs.readFileSync(folder+'/'+step3_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  //
+  //     // Check whether matches step2 contracts
+  //     step2_match = true
+  //     step2_data.forEach(function(contract, contract_idx){
+  //       // console.log(`  ${contract.contract_id}`)
+  //       contract_match = step5_data.filter(x=> x.contract_id == contract.contract_id)
+  //       corresponding_total = contract_match.reduce((prev, elem)=> {
+  //         return prev + Number(elem.volume_required)}, 0)
+  //       // console.log(corresponding_total)
+  //     })
+  //
+  //   }
+  // })
 
 }
 
-module.exports = {test_step_7, test_step_3}
+module.exports = {test_step_7, test_step_3, test_step_5}
 
 // test_step_7('20210831_delivery', '20210831_delivery_step7_certificate_to_contract.csv')
 //test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')

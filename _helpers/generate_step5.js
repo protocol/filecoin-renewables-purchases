@@ -2,7 +2,7 @@ let fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const json2csvparse = require('json2csv');
 
-
+// All automatic redemptions right now are in China, so this code assumes supplier and beneficiary countries match
 function gen_step_5_auto(transaction_folder, contracts, smart_contract_id, attestation_folder){
 
   // Load data for steps 2 and 3, and the manual info for step5
@@ -11,10 +11,6 @@ function gen_step_5_auto(transaction_folder, contracts, smart_contract_id, attes
 
   const step2_data = parse(fs.readFileSync(transaction_folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   const step3_data = parse(fs.readFileSync(transaction_folder+'/'+step3_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
-
-  // console.log(step2_data[0])
-  // console.log(step3_data[0])
-  // console.log(step5_manual_data[0])
 
   // We need to know the batch number that's already been allocated.
   // Do this by first loading all of the other allocations
