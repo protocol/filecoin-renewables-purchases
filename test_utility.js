@@ -165,18 +165,19 @@ async function test_step_5(){
   folder_to_step5 = {}
   const transaction_array = parse(fs.readFileSync('all_transactions.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   var all_allocations = []
+  console.log('Searching for step5 files')
   transaction_array.forEach(function(transaction, idx){
     folder_to_step5[transaction.transaction_folder] = []
     try{
       newData = parse(fs.readFileSync(transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_manual.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
-      console.log(`Found ${transaction.transaction_folder+'_step5_redemption_information_manual.csv'}`)
+      console.log(`   ...Found ${transaction.transaction_folder+'_step5_redemption_information_manual.csv'}`)
       step5_filenames.push(transaction.transaction_folder+'_step5_redemption_information_manual.csv')
       step5_to_folder[transaction.transaction_folder+'_step5_redemption_information_manual.csv'] = transaction.transaction_folder
       folder_to_step5[transaction.transaction_folder].push(transaction.transaction_folder+'_step5_redemption_information_manual.csv')
       all_allocations = all_allocations.concat(newData)}catch{}
     try{
       newData = parse(fs.readFileSync(transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_automatic.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
-      console.log(`Found ${transaction.transaction_folder+'_step5_redemption_information_automatic.csv'}`)
+      console.log(`   ...Found ${transaction.transaction_folder+'_step5_redemption_information_automatic.csv'}`)
       step5_filenames.push(transaction.transaction_folder+'_step5_redemption_information_automatic.csv')
       folder_to_step5[transaction.transaction_folder].push(transaction.transaction_folder+'_step5_redemption_information_automatic.csv')
       step5_to_folder[transaction.transaction_folder+'_step5_redemption_information_automatic.csv'] = transaction.transaction_folder
@@ -184,7 +185,7 @@ async function test_step_5(){
     }catch{}
   })
 
-  console.log(folder_to_step5)
+  // console.log(folder_to_step5)
 
   // Compare the step5 files we found to step 2 contracts
   folders = Object.keys(folder_to_step5)
@@ -201,35 +202,32 @@ async function test_step_5(){
     },[])
 
     // Check whether we have volumes.
-    console.log(step5_filenames)
-    console.log(step5_data)
-    step5_data_keys = Object.keys(step5_data[0])
-    if(!(step5_data_keys.includes('volume_required'))){console.log('  > no volume key (old csv version?), cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
-      if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
+    if(step5_filenames.length == 0){console.log('   > No allocation files found')} else{
+      step5_data_keys = Object.keys(step5_data[0])
+      if(!(step5_data_keys.includes('volume_required'))){console.log('  > no volume key (old csv version?), cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
+        if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
 
 
-        // Load data for the step2 file
-        step2_file = folder+'_step2_orderSupply.csv'
-        step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+          // Load data for the step2 file
+          step2_file = folder+'_step2_orderSupply.csv'
+          step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
 
-        // For every contract, see whether the volume matches
-        step2_data.forEach(function(contract, contractidx){
-          corresponding_vol = step5_data.filter(x=> x.contract_id == contract.contract_id)
-          if(corresponding_vol.length == 0){console.log(`  >${contract.contract_id} not yet allocated`); folder_contracts_fully_allocated = false} else{
-            corresponding_total = corresponding_vol.reduce((prev, elem)=> {
-              return prev + Number(elem.volume_required)},0)
-            if(!(corresponding_total==contract.volume_MWh)){
-              console.log(`  > Mismatch: ${contract.contract_id}: step 5 has ${corresponding_total} MWh, step2 has ${contract.volume_MWh} MWh`)
-              folder_contracts_fully_allocated = false
+          // For every contract, see whether the volume matches
+          step2_data.forEach(function(contract, contractidx){
+            corresponding_vol = step5_data.filter(x=> x.contract_id == contract.contract_id)
+            if(corresponding_vol.length == 0){console.log(`  >${contract.contract_id} not yet allocated`); folder_contracts_fully_allocated = false} else{
+              corresponding_total = corresponding_vol.reduce((prev, elem)=> {
+                return prev + Number(elem.volume_required)},0)
+              if(!(corresponding_total==contract.volume_MWh)){
+                console.log(`  > Mismatch: ${contract.contract_id}: step 5 has ${corresponding_total} MWh, step2 has ${contract.volume_MWh} MWh`)
+                folder_contracts_fully_allocated = false
+              }
             }
-          }
-        })
-
-
-
+          })
+        }
       }
     }
-    if(folder_contracts_fully_allocated){console.log(`   Compared step 2 and 5: all ${folder} contracts appear fully allocated!`)}
+    if(folder_contracts_fully_allocated){console.log(`   Compared step 2 and 5: all ${folder} contracts match allocated volumes!`)}
   })
 
   // // Test each step5 file by comparing it to steps 2 and 3
