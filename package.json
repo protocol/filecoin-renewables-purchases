@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Renewable energy purchases for the Filecoin network",
   "main": "main.js",
-  "type": "module",
   "scripts": {
     "csv": "env-cmd node _helpers/csv.js",
     "test": "echo \"Error: no test specified\" && exit 1"
