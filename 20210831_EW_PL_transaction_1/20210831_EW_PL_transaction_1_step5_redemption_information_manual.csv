@@ -1,0 +1,7 @@
+attestation_id,redemption_process,contract_id,allocation_id,smart_contract_address,batchID,network,zl_protocol_version,minerID,beneficiary,beneficiary_country,beneficiary_location,supply_country,volume_required,start_date,end_date,redemption_purpose,attestation_folder
+20210831_EW_PL_transaction_1_attestation_1,manual,,,,,246,,,,,,,,,,,20210831_delivery
+20210831_EW_PL_transaction_1_attestation_2,manual,,,,,246,,,,,,,,,,,20210831_delivery
+20210831_EW_PL_transaction_1_attestation_3,manual,,,,,246,,,,,,,,,,,20210831_delivery
+20210831_EW_PL_transaction_1_attestation_4,manual,,,,,246,,,,,,,,,,,20210831_delivery
+20210831_EW_PL_transaction_1_attestation_5,manual,,,,,246,,,,,,,,,,,20210831_delivery
+20210831_EW_PL_transaction_1_attestation_6,manual,,,,,246,,,,,,,,,,,20210831_delivery

@@ -201,6 +201,8 @@ async function test_step_5(){
     },[])
 
     // Check whether we have volumes.
+    console.log(step5_filenames)
+    console.log(step5_data)
     step5_data_keys = Object.keys(step5_data[0])
     if(!(step5_data_keys.includes('volume_required'))){console.log('  > no volume key (old csv version?), cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
       if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
