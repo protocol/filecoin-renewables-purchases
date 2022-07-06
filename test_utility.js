@@ -165,6 +165,8 @@ async function test_step_5(){
   folder_to_step5 = {}
   const transaction_array = parse(fs.readFileSync('all_transactions.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   var all_allocations = []
+  console.log('')
+  console.log('---------')
   console.log('Searching for step5 files')
   transaction_array.forEach(function(transaction, idx){
     folder_to_step5[transaction.transaction_folder] = []
@@ -185,7 +187,8 @@ async function test_step_5(){
     }catch{}
   })
 
-  // console.log(folder_to_step5)
+  console.log('')
+  console.log('---------')
 
   // Compare the step5 files we found to step 2 contracts
   folders = Object.keys(folder_to_step5)
@@ -195,14 +198,14 @@ async function test_step_5(){
     console.log(`Comparing step2 to step5 in folder ${folder}`)
 
     // Load data for the step5 file(s)
-    step5_filenames = folder_to_step5[folder]
-    step5_data = step5_filenames.reduce((prev, elem)=>{
+    step5_filenames_this_folder = folder_to_step5[folder]
+    step5_data = step5_filenames_this_folder.reduce((prev, elem)=>{
       newData = parse(fs.readFileSync(folder+'/'+elem, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
       return prev.concat(newData)
     },[])
 
     // Check whether we have volumes.
-    if(step5_filenames.length == 0){console.log('   > No allocation files found')} else{
+    if(step5_filenames_this_folder.length == 0){console.log('   > No allocation files found')} else{
       step5_data_keys = Object.keys(step5_data[0])
       if(!(step5_data_keys.includes('volume_required'))){console.log('  > no volume key (old csv version?), cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
         if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to step 2'); folder_contracts_fully_allocated = false} else{
@@ -215,7 +218,7 @@ async function test_step_5(){
           // For every contract, see whether the volume matches
           step2_data.forEach(function(contract, contractidx){
             corresponding_vol = step5_data.filter(x=> x.contract_id == contract.contract_id)
-            if(corresponding_vol.length == 0){console.log(`  >${contract.contract_id} not yet allocated`); folder_contracts_fully_allocated = false} else{
+            if(corresponding_vol.length == 0){console.log(`   > ${contract.contract_id} not yet allocated`); folder_contracts_fully_allocated = false} else{
               corresponding_total = corresponding_vol.reduce((prev, elem)=> {
                 return prev + Number(elem.volume_required)},0)
               if(!(corresponding_total==contract.volume_MWh)){
@@ -230,35 +233,81 @@ async function test_step_5(){
     if(folder_contracts_fully_allocated){console.log(`   Compared step 2 and 5: all ${folder} contracts match allocated volumes!`)}
   })
 
-  // // Test each step5 file by comparing it to steps 2 and 3
-  // step5_filenames.forEach(function(filename, idx){
-  //
-  //   console.log('')
-  //   console.log(`Testing file ${filename}`)
-  //   folder = step5_to_folder[filename]
-  //
-  //   // Load data. Check whether we have volumes.
-  //   step5_data = parse(fs.readFileSync(folder+'/'+filename, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
-  //   if(step5_data[0].volume_required == ''){console.log('  > no volume listed, cannot compare to steps 2 and 3')} else{
-  //
-  //     // Otherwise, load steps 2 and 3 for comparison
-  //     step2_file = folder+'_step2_orderSupply.csv'
-  //     step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
-  //     step3_file = folder+'_step3_match.csv'
-  //     step3_data = parse(fs.readFileSync(folder+'/'+step3_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
-  //
-  //     // Check whether matches step2 contracts
-  //     step2_match = true
-  //     step2_data.forEach(function(contract, contract_idx){
-  //       // console.log(`  ${contract.contract_id}`)
-  //       contract_match = step5_data.filter(x=> x.contract_id == contract.contract_id)
-  //       corresponding_total = contract_match.reduce((prev, elem)=> {
-  //         return prev + Number(elem.volume_required)}, 0)
-  //       // console.log(corresponding_total)
-  //     })
-  //
-  //   }
-  // })
+  // For step5 files with 'automatic' in the filename, ensure they match to a step3 allocation
+  console.log('')
+  console.log('---------')
+  console.log("Checking that every 'automatic' step5 redemption corresponds to a step3 allocation")
+  step5_filenames.forEach(function(filename, idx){
+    if(filename.includes('automatic')){
+      foldername = filename.replace('_step5_redemption_information_automatic.csv', '')
+      console.log('')
+      console.log(filename)
+      step5_data = parse(fs.readFileSync(foldername+'/'+filename, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      step3_data = parse(fs.readFileSync(foldername+'/'+foldername+'_step3_match.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      if(!(step3_data.length >= step5_data.length)){console.log(`   > Warning: step 5 has ${step5_data.length} allocations and step 3 has ${step3_data.length}. Step 5 should not have more than step3.`)}
+      if(!(Object.keys(step5_data[0]).includes('allocation_id'))){console.log(`   > No allocation_id key (old step5 format?), cannot run check.`)}else{
+        step5_corresponds_to_step3 = true
+        step5_data.forEach(function(step5_elem, idx){
+          corresponding_step3 = step3_data.filter(x=> x.allocation_id == step5_elem.allocation_id)
+
+          // console.log(step5_elem)
+          // console.log(corresponding_step3)
+
+          if (corresponding_step3.length >1){console.log(`   > Warning: ${step5_elem.allocation_id} matches multiple step3 allocations. It should not.`); step5_corresponds_to_step3 = false} else{
+            corresponding_step3 = corresponding_step3[0]
+          }
+          if (corresponding_step3.length >1){console.log(`   > Warning: ${step5_elem.allocation_id} in step 5 does not match an allocation in step3`); step5_corresponds_to_step3 = false}
+
+          if(!(step5_elem.minerID == corresponding_step3.minerID)){
+            console.log(`   > Warning! For ${step5_elem.allocation_id}, step5 minerID is ${step5_elem.minerID} vs step3 minerID is ${corresponding_step3.minerID}`)
+            step5_corresponds_to_step3 = false
+          }
+
+          if(!(step5_elem.volume_required == corresponding_step3.volume_MWh)){
+            console.log(`   > Warning! For ${step5_elem.allocation_id}, step5 volume is ${step5_elem.volume_required} MWh vs step3 minerID is ${corresponding_step3.volume_MWh} MWh`)
+            step5_corresponds_to_step3 = false
+          }
+
+        })
+        if (step5_corresponds_to_step3){console.log(`   Success: each step5 attestaion corresponds to one step3 allocation!`)}
+      }
+    }
+  })
+
+  // Check that the batchIDs match across folders
+  // Use all_allocations which has data from every step5
+  console.log('')
+  console.log('---------')
+  console.log("Checking that batchIDs are consistent between transaction folders")
+
+  all_smartContract_addresses = []
+
+  // Find smart contract addresses across all allocations
+  all_allocations.forEach(function(alloc, idx){if(!(all_smartContract_addresses.includes(alloc.smart_contract_address))){
+    all_smartContract_addresses.push(alloc.smart_contract_address)
+  }})
+
+  all_smartContract_addresses.forEach(function(address, idx){
+    if(!(address == '')){
+      console.log(`Checking smart contract address ${address}:`)
+      batches_correct = true
+      allocs_with_this_address = all_allocations.filter(x=>x.smart_contract_address == address)
+      batchIDs = allocs_with_this_address.reduce((prev, curr)=>{return prev.concat(Number(curr.batchID))},[])
+
+      // Check that there aren't gaps
+      batchID_max = batchIDs.reduce((prev, curr)=>{if (curr>prev){return curr} else{return prev}}, 0)
+      batchID_min = batchIDs.reduce((prev, curr)=>{if (curr<prev){return curr} else{return prev}}, 1000000)
+      if(!((batchID_max-batchID_min) == (batchIDs.length-1))){console.log(`   > Warning: gap or repeat detected: min is ${batchID_min}, max is ${batchID_max}, number of batchIDs is ${batchIDs.length}`); batches_correct = false}
+
+      // Check that there aren't repeats
+      batchIDs.forEach(function(thisID, idx){
+        // console.log(thisID)
+        matching_elems = batchIDs.filter(x=>x == thisID)
+        if(!(matching_elems.length == 1)){console.log(`   > Warning: found batch ${thisID} showed up ${matching_elems.length} times. Must not repeat.`); batches_correct = false}
+      })
+      if(batches_correct){console.log(`   Success: no gaps or repeats in batch numbers detected!`)}
+    }
+  })
 
 }
 
