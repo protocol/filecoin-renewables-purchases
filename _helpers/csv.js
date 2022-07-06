@@ -2682,9 +2682,13 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
 
     let beneficiary, redemptionPurpose
 
-    const step5Header = ['"attestation_id"', '"smart_contract_address"', '"batchID"', '"network"',
-        '"zl_protocol_version"', '"minerID"', '"beneficiary"', '"redemption_purpose"', '"attestation_folder"']
-    const step5ColumnTypes = ["string", "string", "number", "number",
+    const step5Header = ['"attestation_id"', '"data_source"', '"contract_id"', '"allocation_id"',
+        '"smart_contract_address"', '"batchID"', '"network"', '"zl_protocol_version"', '"minerID"',
+        '"beneficiary"', '"beneficiary_country"', '"supply_country"', '"supply_location"',
+        '"volume_required"', '"start_date"', '"end_date"', '"redemption_purpose"', '"attestation_folder"']
+    const step5ColumnTypes = ["string", "string", "string", "string",
+        "string", "number", "number", "string", "string",
+        "string", "string", "string", "string",
         "string", "string", "string", "string", "string"]
 
     let step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
@@ -2728,23 +2732,44 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
         if(productType.toUpperCase() == "IREC") {
             // Automatic (1:1)
             const allocations = step3.filter((a) => {return a.contract_id == contractId})
-            attestations = allocations.map((a) => {return {
-                "networkId": networkId,
-                "tokenizationProtocol": tokenizationProtocol,
-                "smartContractAddress": smartContractAddress,
-                "tokenType": tokenType,
-                "minerId": a.minerID,
-                "RECs": a.volume_MWh
-            }})
+            attestations = allocations.map((a) => {
+                // Find miner location
+                let location
+                let locationObjects = syntheticLocations.filter((l) => {
+                    return l.provider == a.minerID && l.region.indexOf(contract.country) == 0
+                })
+                if(locationObjects.length == 0) {
+                    location = null
+                }
+                else {
+                    location = locationObjects[0].region
+                }
+                return {
+                    "networkId": networkId,
+                    "contractId": contractId,
+                    "allocationId": a.allocation_id,
+                    "volumeRequired": a.volume_MWh,
+                    "tokenizationProtocol": tokenizationProtocol,
+                    "smartContractAddress": smartContractAddress,
+                    "tokenType": tokenType,
+                    "minerId": a.minerID,
+                    "minerLocation": location,
+                    "RECs": a.volume_MWh
+                }
+            })
         }
         else {
             // Multiple minerIds per attestation
             attestations = [{
                 "networkId": networkId,
+                "contractId": contractId,
+                "allocationId": null,
+                "volumeRequired": null,
                 "tokenizationProtocol": tokenizationProtocol,
                 "smartContractAddress": smartContractAddress,
                 "tokenType": tokenType,
                 "minerId": null,
+                "minerLocation": null,
                 "RECs": null
             }]
         }
@@ -2769,12 +2794,21 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
 
             step5.push({
                 attestation_id: `${transactionFolderName}_attestation_${step5.length}`,
+                data_source: "auto",
+                contract_id: attestation.contractId,
+                allocation_id: attestation.allocationId,
                 smart_contract_address: smartContractAddress,
                 batchID: batchId + step5.length,
                 network: networkId,
                 zl_protocol_version: tokenizationProtocol,
                 minerID: attestation.minerId,
                 beneficiary: beneficiary,
+                beneficiary_country: contract.country,
+                supply_country: (attestation.minerLocation != null) ? attestation.minerLocation.split("-")[0] : null,
+                supply_location: attestation.minerLocation,
+                volume_required: attestation.volumeRequired,
+                start_date: contract.reportingStart,
+                end_date: contract.reportingEnd,
                 redemption_purpose: redemptionPurpose,
                 attestation_folder: attestationFolderName
             })
@@ -2784,26 +2818,14 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                 continue
 
             if(attestation.minerId != null) {
-                // Find miner location
-                let location
-                let locationObjects = syntheticLocations.filter((l) => {
-                    return l.provider == attestation.minerId && l.region.indexOf(contract.country) == 0
-                })
-                if(locationObjects.length == 0) {
-                    location = null
-                }
-                else {
-                    location = locationObjects[0].region
-                }
-
                 // Add item to evident redemptions work sheet
                 redemptionWorkSheet = xlsxUtils.sheet_add_aoa(redemptionWorkSheet, [
-                    [beneficiary, contract.country, location, , attestation.RECs, contract.reportingStart, contract.reportingEnd, redemptionPurpose]
+                    [beneficiary, contract.country, attestation.minerLocation, , attestation.RECs, contract.reportingStart, contract.reportingEnd, redemptionPurpose]
                 ], { origin: `B${evidentIndex+3}` })
 
                 // Add item to evident new beneficiaries work sheet
                 newBeneficiariesWorkSheet = xlsxUtils.sheet_add_aoa(newBeneficiariesWorkSheet, [
-                    [beneficiary, contract.country, location]
+                    [beneficiary, contract.country, attestation.minerLocation]
                 ], { origin: `A${evidentIndex+4}` })
 
                 evidentIndex++
