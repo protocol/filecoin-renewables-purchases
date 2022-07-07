@@ -2682,7 +2682,7 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
 
     let beneficiary, redemptionPurpose
 
-    const step5Header = ['"attestation_id"', '"data_source"', '"contract_id"', '"allocation_id"',
+    const step5Header = ['"attestation_id"', '"redemption_process"', '"contract_id"', '"allocation_id"',
         '"smart_contract_address"', '"batchID"', '"network"', '"zl_protocol_version"', '"minerID"',
         '"beneficiary"', '"beneficiary_country"', '"beneficiary_location"', '"supply_country"',
         '"volume_required"', '"start_date"', '"end_date"', '"redemption_purpose"', '"attestation_folder"']
@@ -2754,7 +2754,8 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                     "tokenType": tokenType,
                     "minerId": a.minerID,
                     "minerLocation": location,
-                    "RECs": a.volume_MWh
+                    "RECs": a.volume_MWh,
+                    "redemptionProcess": "automatic"
                 }
             })
         }
@@ -2770,7 +2771,8 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                 "tokenType": tokenType,
                 "minerId": null,
                 "minerLocation": null,
-                "RECs": null
+                "RECs": null,
+                "redemptionProcess": "manual"
             }]
         }
 
@@ -2793,8 +2795,8 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
             }
 
             step5.push({
-                attestation_id: `${transactionFolderName}_attestation_${step5.length}`,
-                data_source: "auto",
+                attestation_id: `${transactionFolderName}_attestation_${step5.length + 1}`,
+                redemption_process: attestation.redemptionProcess,
                 contract_id: attestation.contractId,
                 allocation_id: attestation.allocationId,
                 smart_contract_address: smartContractAddress,
