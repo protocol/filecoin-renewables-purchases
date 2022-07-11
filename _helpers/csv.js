@@ -27,6 +27,8 @@ let minersLocationsFileWithLatLng
 const step2FileNameSuffix = "_step2_orderSupply.csv"
 const step3FileNameSuffix = "_step3_match.csv"
 const step5FileNameSuffix = "_step5_redemption_information.csv"
+const step5AutomaticFileNameSuffix = "_step5_redemption_information_automatic.csv"
+const step5ManualFileNameSuffix = "_step5_redemption_information_manual.csv"
 const step6FileNameSuffix = "_step6_generationRecords.csv"
 const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
 let step2Csv, step3Csv, step5Csv, step6Csv, step7Csv
@@ -453,6 +455,42 @@ switch (activities) {
 
         // Create new file
         await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`, step5Csv)
+
+        break
+    case 'split-step-5':
+        transactionFolder = args[1]
+
+        transactionFolderChunks = transactionFolder.split("/")
+        transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
+
+        if(transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder is required parameter.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Split step 5 CSV
+        const step5Csvs = await splitStep5(transactionFolder)
+        if(step5Csvs == null) {
+            console.error(`Error! Could not split step 5 CSV.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        try {
+            // Bakup existing files
+            await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step5AutomaticFileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step5AutomaticFileNameSuffix}.bak-${(new Date()).toISOString()}`)
+            await fs.promises.rename(`${transactionFolder}/${transactionFolderName}${step5ManualFileNameSuffix}`, `${transactionFolder}/${transactionFolderName}${step5ManualFileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)
+        }
+
+        // Create new files
+        if(step5Csvs['automatic'] != null)
+            await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5AutomaticFileNameSuffix}`, step5Csvs['automatic'])    
+        if(step5Csvs['manual'] != null)
+            await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5ManualFileNameSuffix}`, step5Csvs['manual'])
 
         break
     default:
@@ -2855,6 +2893,68 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
             skipEmptyLines: false,
             columns: null
         })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Split step 5 CSV
+async function splitStep5(transactionFolder) {
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step5Header = ['"attestation_id"', '"redemption_process"', '"contract_id"', '"allocation_id"',
+        '"smart_contract_address"', '"batchID"', '"network"', '"zl_protocol_version"', '"minerID"',
+        '"beneficiary"', '"beneficiary_country"', '"beneficiary_location"', '"supply_country"',
+        '"volume_required"', '"start_date"', '"end_date"', '"redemption_purpose"', '"attestation_folder"']
+    const step5ColumnTypes = ["string", "string", "string", "string",
+        "string", "number", "number", "string", "string",
+        "string", "string", "string", "string",
+        "string", "string", "string", "string", "string"]
+
+    const step5 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
+    // Filter manual redemption process attestations
+    const step5Manual = step5.filter((a) => {
+        return a.redemption_process == "manual"
+    })
+    // Filter automatic redemption process attestations
+    const step5Automatic = step5.filter((a) => {
+        return a.redemption_process == "automatic"
+    })
+
+    const resultManual = (step5Manual.length > 0) ?
+        step5Header.join(",") + "\r\n" +
+            Papa.unparse(step5Manual, {
+                quotes: step5ColumnTypes.map((ct) => {return ct != 'number'}),
+                quoteChar: '"',
+                escapeChar: '"',
+                delimiter: ",",
+                header: false,
+                newline: "\r\n",
+                skipEmptyLines: false,
+                columns: null
+            })
+            : null
+
+    const resultAutomatic = (step5Automatic.length > 0) ?
+        step5Header.join(",") + "\r\n" +
+            Papa.unparse(step5Automatic, {
+                quotes: step5ColumnTypes.map((ct) => {return ct != 'number'}),
+                quoteChar: '"',
+                escapeChar: '"',
+                delimiter: ",",
+                header: false,
+                newline: "\r\n",
+                skipEmptyLines: false,
+                columns: null
+            })
+            : null
+    
+    const result = {
+        manual: resultManual,
+        automatic: resultAutomatic
+    }
 
     return new Promise((resolve) => {
         resolve(result)
