@@ -18,11 +18,12 @@ const args = process.argv.slice(2)
 const activities = args[0]
 let filePath
 let jsonContent
-let attestationFolder, transactionFolder
+let attestationFolder, transactionFolder, purchaseOrderFolder
 let attestationFolderChunks, attestationFolderName
 let transactionFolderChunks, transactionFolderName
 let minersLocationsFile
 let minersLocationsFileWithLatLng
+let purchaseOrderFolderChunks, purchaseOrderFolderName
 
 const step2FileNameSuffix = "_step2_orderSupply.csv"
 const step3FileNameSuffix = "_step3_match.csv"
@@ -31,7 +32,7 @@ const step5AutomaticFileNameSuffix = "_step5_redemption_information_automatic.cs
 const step5ManualFileNameSuffix = "_step5_redemption_information_manual.csv"
 const step6FileNameSuffix = "_step6_generationRecords.csv"
 const step7FileNameSuffix = "_step7_certificate_to_contract.csv"
-let step2Csv, step3Csv, step5Csv, step6Csv, step7Csv
+let step2Csv, step3Csv, step5Csv, step6Csv, step7Csv, purchaseOrderCsv
 
 switch (activities) {
     case 'fix-dates':
@@ -491,6 +492,39 @@ switch (activities) {
             await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5AutomaticFileNameSuffix}`, step5Csvs['automatic'])    
         if(step5Csvs['manual'] != null)
             await fs.promises.writeFile(`${transactionFolder}/${transactionFolderName}${step5ManualFileNameSuffix}`, step5Csvs['manual'])
+
+        break
+    case 'create-purchase-order':
+        purchaseOrderFolder = args[1]
+        minersLocationsFile = args[2]
+
+        purchaseOrderFolderChunks = purchaseOrderFolder.split("/")
+        purchaseOrderFolderName = purchaseOrderFolderChunks[purchaseOrderFolderChunks.length-1]
+
+        if(purchaseOrderFolder == null || minersLocationsFile == null) {
+            console.error(`Error! Bad arguments provided. Purchase order folder and Miners location file are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Create purchase order CSV
+        purchaseOrderCsv = await createPurchaseOrder(purchaseOrderFolder, minersLocationsFile)
+        if(purchaseOrderCsv == null) {
+            console.error(`Error! Could not create purchase order CSV.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, `${purchaseOrderFolder}/${purchaseOrderFolderName}.bak-${(new Date()).toISOString()}.csv`)
+        }
+        catch (error) {
+//            console.log(error)
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, purchaseOrderCsv)
 
         break
     default:
@@ -2955,6 +2989,39 @@ async function splitStep5(transactionFolder) {
         manual: resultManual,
         automatic: resultAutomatic
     }
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Create purchase order CSV
+async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile) {
+    const purchaseOrderFolderPathChunks = purchaseOrderFolder.split("/")
+
+    const purchaseOrderHeader = ['"region"', '"value"']
+    const purchaseOrderColumnTypes = ["string", "number"]
+
+    let purchaseOrder = []
+
+    const syntheticLocationsFilePath = `./${purchaseOrderFolder}/_assets/${minersLocationsFile}`
+    let syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
+        encoding:'utf8',
+        flag:'r'
+    })
+    syntheticLocations = JSON.parse(syntheticLocations).providerLocations
+
+    let result = purchaseOrderHeader.join(",") + "\r\n" +
+        Papa.unparse(purchaseOrder, {
+            quotes: purchaseOrderColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
 
     return new Promise((resolve) => {
         resolve(result)
