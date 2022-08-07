@@ -24,6 +24,7 @@ let transactionFolderChunks, transactionFolderName
 let minersLocationsFile
 let minersLocationsFileWithLatLng
 let purchaseOrderFolderChunks, purchaseOrderFolderName
+let nercGeoJsonFile
 
 const step2FileNameSuffix = "_step2_orderSupply.csv"
 const step3FileNameSuffix = "_step3_match.csv"
@@ -497,18 +498,19 @@ switch (activities) {
     case 'create-purchase-order':
         purchaseOrderFolder = args[1]
         minersLocationsFile = args[2]
+        nercGeoJsonFile = args[3]
 
         purchaseOrderFolderChunks = purchaseOrderFolder.split("/")
         purchaseOrderFolderName = purchaseOrderFolderChunks[purchaseOrderFolderChunks.length-1]
 
-        if(purchaseOrderFolder == null || minersLocationsFile == null) {
-            console.error(`Error! Bad arguments provided. Purchase order folder and Miners location file are required parameters.`)
+        if(purchaseOrderFolder == null || minersLocationsFile == null || nercGeoJsonFile == null) {
+            console.error(`Error! Bad arguments provided. Purchase order folder, Miners location file and NERC GeoJSON file are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Create purchase order CSV
-        purchaseOrderCsv = await createPurchaseOrder(purchaseOrderFolder, minersLocationsFile)
+        purchaseOrderCsv = await createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile)
         if(purchaseOrderCsv == null) {
             console.error(`Error! Could not create purchase order CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -517,14 +519,14 @@ switch (activities) {
 
         try {
             // Bakup existing file
-            await fs.promises.rename(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, `${purchaseOrderFolder}/${purchaseOrderFolderName}.bak-${(new Date()).toISOString()}.csv`)
+//            await fs.promises.rename(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, `${purchaseOrderFolder}/${purchaseOrderFolderName}.bak-${(new Date()).toISOString()}.csv`)
         }
         catch (error) {
 //            console.log(error)
         }
 
         // Create new file
-        await fs.promises.writeFile(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, purchaseOrderCsv)
+//        await fs.promises.writeFile(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, purchaseOrderCsv)
 
         break
     default:
@@ -2996,11 +2998,11 @@ async function splitStep5(transactionFolder) {
 }
 
 // Create purchase order CSV
-async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile) {
+async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile) {
     const purchaseOrderFolderPathChunks = purchaseOrderFolder.split("/")
 
-    const purchaseOrderHeader = ['"region"', '"value"']
-    const purchaseOrderColumnTypes = ["string", "number"]
+    const purchaseOrderHeader = ['"quarter"', '"region"', '"value"']
+    const purchaseOrderColumnTypes = ["string", "string", "number"]
 
     let purchaseOrder = []
 
@@ -3010,6 +3012,89 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile) {
         flag:'r'
     })
     syntheticLocations = JSON.parse(syntheticLocations).providerLocations
+
+    let L = HL()    // headless leaflet
+    let map = L.map(L.document.createElement('div'))
+
+    const nercGeoJsonFilePath = `./${purchaseOrderFolder}/_assets/${nercGeoJsonFile}`
+    let nercGeoJson = await fs.promises.readFile(nercGeoJsonFilePath, {
+        encoding:'utf8',
+        flag:'r'
+    })
+    nercGeoJson = JSON.parse(nercGeoJson)
+
+    const nercGeoJsonLayer = L.geoJSON(nercGeoJson).addTo(map)
+
+    let minersInRegion = {}
+
+    for (const location of syntheticLocations) {
+        const country = location.country
+        const region = location.region
+        const miner = location.provider
+        
+        const countries = syntheticLocations
+            .filter((l) => {return l.provider == location.provider})
+            .map((l) => {return l.country})
+
+        const regions = syntheticLocations
+            .filter((l) => {return l.provider == location.provider})
+            .map((l) => {return l.region})
+
+        location.countries = countries
+        location.regions = regions
+
+        await new Promise(resolve => setTimeout(resolve, 1))
+
+        let nercRegion = country
+        if (country == "US") {
+            const m = L.marker([location.lat, location.long])
+            let found = false
+            await nercGeoJsonLayer.eachLayer((layer) => {
+                const nercRegionName = layer.feature.properties.NAME
+                if(!found && layer.contains(m.getLatLng())) {
+                    nercRegion = nercRegionName.substring(nercRegionName.indexOf("(")+1, nercRegionName.indexOf(")"))
+                    found = true
+/*
+                    switch (nercRegionName) {
+                        case "WESTERN ELECTRICITY COORDINATING COUNCIL (WECC)":
+                            nercRegion = "WECC"
+                            break
+                        case "TEXAS RELIABILITY ENTITY (TRE)":
+                            nercRegion = "TRE"
+                            break
+                        case "FLORIDA RELIABILITY COORDINATING COUNCIL (FRCC)":
+                            nercRegion = "FRCC"
+                            break
+                        case "NORTHEAST POWER COORDINATING COUNCIL (NPCC)":
+                            nercRegion = "NPCC"
+                            break
+                        case "SOUTHWEST POWER POOL, RE (SPP)":
+                            nercRegion = "SPP"
+                            break
+                        case "SERC RELIABILITY CORPORATION (SERC)":
+                            nercRegion = "SERC"
+                            break
+                        case "MIDWEST RELIABILITY ORGANIZATION (MRO)":
+                            nercRegion = "MRO"
+                            break
+                        default:
+                            break
+                    }
+*/
+                }
+            })
+        }
+        location.nercRegion = nercRegion
+
+        if (minersInRegion[nercRegion] == undefined)
+            minersInRegion[nercRegion] = []
+        minersInRegion[nercRegion].push(JSON.parse(JSON.stringify(location)))
+    }
+
+    const nercRegions = Object.keys(minersInRegion)
+    for (const nr of nercRegions) {
+        
+    }
 
     let result = purchaseOrderHeader.join(",") + "\r\n" +
         Papa.unparse(purchaseOrder, {
