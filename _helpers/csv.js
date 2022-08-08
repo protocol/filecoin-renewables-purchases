@@ -499,18 +499,23 @@ switch (activities) {
         purchaseOrderFolder = args[1]
         minersLocationsFile = args[2]
         nercGeoJsonFile = args[3]
+        const fromYear = args[4]
+        const fromQuarter = args[5]
+        const energyFactor = args[6]
 
         purchaseOrderFolderChunks = purchaseOrderFolder.split("/")
         purchaseOrderFolderName = purchaseOrderFolderChunks[purchaseOrderFolderChunks.length-1]
 
-        if(purchaseOrderFolder == null || minersLocationsFile == null || nercGeoJsonFile == null) {
-            console.error(`Error! Bad arguments provided. Purchase order folder, Miners location file and NERC GeoJSON file are required parameters.`)
+        if(purchaseOrderFolder == null || minersLocationsFile == null || nercGeoJsonFile == null
+            || fromYear == null || fromQuarter == null || energyFactor == null) {
+            console.error(`Error! Bad arguments provided. Purchase order folder, Miners location file, NERC GeoJSON file, from year and quarter, and energy factor are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Create purchase order CSV
-        purchaseOrderCsv = await createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile)
+        purchaseOrderCsv = await createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile,
+            fromYear, fromQuarter, energyFactor)
         if(purchaseOrderCsv == null) {
             console.error(`Error! Could not create purchase order CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -2998,7 +3003,7 @@ async function splitStep5(transactionFolder) {
 }
 
 // Create purchase order CSV
-async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile) {
+async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile, fromYear, fromQuarter, energyFactor) {
     const purchaseOrderFolderPathChunks = purchaseOrderFolder.split("/")
 
     const purchaseOrderHeader = ['"quarter"', '"region"', '"value"']
@@ -3046,7 +3051,8 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
         await new Promise(resolve => setTimeout(resolve, 1))
 
         let nercRegion = country
-        if (country == "US") {
+//        if (country == "US") {
+        if (country == "US" && 0) {
             const m = L.marker([location.lat, location.long])
             let found = false
             await nercGeoJsonLayer.eachLayer((layer) => {
@@ -3054,6 +3060,7 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
                 if(!found && layer.contains(m.getLatLng())) {
                     nercRegion = nercRegionName.substring(nercRegionName.indexOf("(")+1, nercRegionName.indexOf(")"))
                     found = true
+console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercRegion}`)
 /*
                     switch (nercRegionName) {
                         case "WESTERN ELECTRICITY COORDINATING COUNCIL (WECC)":
@@ -3093,7 +3100,36 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
 
     const nercRegions = Object.keys(minersInRegion)
     for (const nr of nercRegions) {
-        
+        let regionMiners = minersInRegion[nr]
+
+        for (const rm of regionMiners) {
+            const occurences = regionMiners.filter((obj) => obj.provider === rm.provider).length
+            rm.weight = occurences / rm.numLocations
+        }
+
+        regionMiners = regionMiners.filter((value, index, self) =>
+            index === self.findIndex((t) => (
+                t.provider === value.provider
+            ))
+        ).map((rm) => {return {
+            "provider": rm.provider,
+            "country": rm.country,
+            "region": rm.region,
+            "nercRegion": rm.nercRegion,
+            "weight": rm.weight
+        }})
+
+        for await(const rm of regionMiners) {
+            for await(const quarterObj of _listQuarters(fromYear, parseInt(fromQuarter, 10))) {
+                const energyUpperBound = (await _totalEnergyFromModel(quarterObj.quarterStart, quarterObj.quarterEnd,
+                    rm.provider)).total_energy_upper_MWh
+                const progressiveFactor = (quarterObj.daysLeftInQuarter > 1) ? (quarterObj.daysInQuarter/(quarterObj.daysInQuarter - quarterObj.daysLeftInQuarter)) : 1
+console.log(`${nr}, ${quarterObj.year}-${quarterObj.quarter}, ${rm.provider}, ${energyUpperBound}, ${energyUpperBound * parseFloat(energyFactor)}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor}`)
+                purchaseOrder.push([nr, `${quarterObj.year}-${quarterObj.quarter}`, rm.provider,
+                    energyUpperBound, energyUpperBound * parseFloat(energyFactor), energyUpperBound * parseFloat(energyFactor) * rm.weight,
+                    energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor])
+            }
+        }
     }
 
     let result = purchaseOrderHeader.join(",") + "\r\n" +
@@ -3111,4 +3147,107 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
     return new Promise((resolve) => {
         resolve(result)
     })
+}
+
+function _getQuarter(date = new Date()) {
+    return Math.floor(date.getMonth() / 3 + 1)
+}
+  
+function _daysLeftInQuarter(date = new Date()) {
+    const quarter = _getQuarter(date)
+
+    const nextQuarter = new Date()
+
+    if (quarter === 4) {
+        nextQuarter.setFullYear(date.getFullYear() + 1, 0, 1)
+    } else {
+        nextQuarter.setFullYear(date.getFullYear(), quarter * 3, 1)
+    }
+
+    const ms1 = date.getTime()
+    const ms2 = nextQuarter.getTime()
+
+    return Math.floor((ms2 - ms1) / (24 * 60 * 60 * 1000))
+}
+
+function _dateQuarter(date = new Date()) {
+    const quarter = _getQuarter(date)
+    const daysLeftInQuarter = _daysLeftInQuarter(date)
+    const year = date.getFullYear()
+    let daysInQuarter, quarterStart, quarterEnd
+
+    switch (quarter) {
+        case 1:
+            quarterStart = year + "-01-01"
+            quarterEnd = year + "-03-31"
+            daysInQuarter = _daysLeftInQuarter(new Date(year, 0, 1))
+            break
+        case 2:
+            quarterStart = year + "-04-01"
+            quarterEnd = year + "-06-30"
+            daysInQuarter = _daysLeftInQuarter(new Date(year, 3, 1))
+            break
+        case 3:
+            quarterStart = year + "-07-01"
+            quarterEnd = year + "-09-30"
+            daysInQuarter = _daysLeftInQuarter(new Date(year, 6, 1))
+            break
+        case 4:
+            quarterStart = year + "-10-01"
+            quarterEnd = year + "-12-31"
+            daysInQuarter = _daysLeftInQuarter(new Date(year, 9, 1))
+            break               
+        default:
+            console.log(`Invalid quarter ${quarter}`)
+            break
+    }
+
+    return {
+        "year": year,
+        "quarter": quarter,
+        "daysInQuarter": daysInQuarter,
+        "daysLeftInQuarter": daysLeftInQuarter,
+        "quarterStart": quarterStart,
+        "quarterEnd": quarterEnd
+    }
+}
+
+function _listQuarters(year, quarter) {
+    const date = new Date()
+    const toQuarter = _getQuarter(date)
+    const toYear = date.getFullYear()
+    let result = []
+    
+    while(year < toYear || (year == toYear && quarter <= toQuarter)) {
+        if(year == toYear && quarter == toQuarter)
+            result.push(_dateQuarter(date))
+        else
+            switch (quarter) {
+                case 1:
+                    result.push(_dateQuarter(new Date(year, 2, 31)))
+                    break
+                case 2:
+                    result.push(_dateQuarter(new Date(year, 5, 30)))
+                    break
+                case 3:
+                    result.push(_dateQuarter(new Date(year, 8, 30)))
+                    break
+                case 4:
+                    result.push(_dateQuarter(new Date(year, 11, 31)))
+                    break               
+                default:
+                    console.log(`Invalid quarter ${quarter}`)
+                    break
+            }
+
+        if(quarter == 4) {
+            quarter = 1
+            year++
+        }
+        else {
+            quarter++
+        }
+    }
+
+    return result
 }
