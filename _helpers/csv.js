@@ -524,14 +524,14 @@ switch (activities) {
 
         try {
             // Bakup existing file
-//            await fs.promises.rename(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, `${purchaseOrderFolder}/${purchaseOrderFolderName}.bak-${(new Date()).toISOString()}.csv`)
+            await fs.promises.rename(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, `${purchaseOrderFolder}/${purchaseOrderFolderName}.bak-${(new Date()).toISOString()}.csv`)
         }
         catch (error) {
 //            console.log(error)
         }
 
         // Create new file
-//        await fs.promises.writeFile(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, purchaseOrderCsv)
+        await fs.promises.writeFile(`${purchaseOrderFolder}/${purchaseOrderFolderName}.csv`, purchaseOrderCsv)
 
         break
     default:
@@ -3013,6 +3013,25 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
 
     let purchaseOrder = []
 
+    let previousAllocations = []
+    let previousContracts = []
+    const transactionFolders = fs.readdirSync("./").filter((file) => {
+        return file.indexOf("_transaction_") > -1
+    })
+
+    for (const transactionFol of transactionFolders) {
+        const transactionFolPathChunks = transactionFol.split("/")
+        const transactionFolName = transactionFolPathChunks[transactionFolPathChunks.length-1]
+        const alloc = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step3FileNameSuffix}`)
+        if(alloc != null)
+            previousAllocations = previousAllocations.concat(alloc)
+        let contr = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
+        if(contr != null) {
+            contr = contr.filter((c) => {return c.step3_match_complete == 1})
+            previousContracts = previousContracts.concat(contr)
+        }
+    }
+
     const syntheticLocationsFilePath = `./${purchaseOrderFolder}/_assets/${minersLocationsFile}`
     let syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
         encoding:'utf8',
@@ -3100,6 +3119,8 @@ console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercReg
         minersInRegion[nercRegion].push(JSON.parse(JSON.stringify(location)))
     }
 
+    console.log(minersInRegion)
+
     const nercRegions = Object.keys(minersInRegion)
     for (const nr of nercRegions) {
         let regionMiners = minersInRegion[nr]
@@ -3123,13 +3144,33 @@ console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercReg
 
         for await(const rm of regionMiners) {
             for await(const quarterObj of _listQuarters(fromYear, parseInt(fromQuarter, 10))) {
+                const allocations = previousAllocations.filter((a) => {return a.minerID == rm.provider && a.defaulted == 0})
+                let allocatedVolume = 0
+                for (const allocation of allocations) {
+                    const contractId = allocation.contract_id
+                    const volume = allocation.volume_MWh
+                    const contract = previousContracts.filter((c) => {return c.contract_id == contractId})
+                    const reportingStart = moment(contract.reportingStart, "YYYY-MM-DD")
+                    const reportingEnd = moment(contract.reportingEnd, "YYYY-MM-DD")
+                    const quarterStart = moment(quarterObj.quarterStart, "YYYY-MM-DD")
+                    const quarterEnd = moment(quarterObj.quarterEnd, "YYYY-MM-DD")
+
+                    if(reportingStart.isSameOrBefore(quarterEnd)
+                        && reportingEnd.isSameOrAfter(quarterStart)) {
+                            const start = (reportingStart.isSameOrAfter(quarterStart)) ? reportingStart : quarterStart
+                            const end = (reportingEnd.isSameOrBefore(quarterEnd)) ? reportingEnd : quarterEnd
+                            const overlap = (end.diff(start, 'days')) / quarterObj.daysInQuarter
+                            allocatedVolume += overlap * volume
+console.log(`${volume}, ${reportingStart.format("YYYY-MM-DD")}, ${reportingEnd.format("YYYY-MM-DD")}, ${quarterStart.format("YYYY-MM-DD")}, ${quarterEnd.format("YYYY-MM-DD")}, ${start.format("YYYY-MM-DD")}, ${end.format("YYYY-MM-DD")}, ${overlap}, ${allocatedVolume}`)
+                        }
+                }
                 const energyUpperBound = (await _totalEnergyFromModel(quarterObj.quarterStart, quarterObj.quarterEnd,
                     rm.provider)).total_energy_upper_MWh
                 const progressiveFactor = (quarterObj.daysLeftInQuarter > 1) ? (quarterObj.daysInQuarter/(quarterObj.daysInQuarter - quarterObj.daysLeftInQuarter)) : 1
-console.log(`${nr}, ${quarterObj.year}-${quarterObj.quarter}, ${rm.provider}, ${energyUpperBound}, ${energyUpperBound * parseFloat(energyFactor)}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor}`)
+console.log(`${nr}, ${quarterObj.year}-${quarterObj.quarter}, ${rm.provider}, ${energyUpperBound}, ${energyUpperBound * parseFloat(energyFactor)}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor}, ${allocatedVolume}, ${Match.ceil(energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor - allocatedVolume)}`)
                 purchaseOrder.push([nr, `${quarterObj.year}-${quarterObj.quarter}`, rm.provider,
                     energyUpperBound, energyUpperBound * parseFloat(energyFactor), energyUpperBound * parseFloat(energyFactor) * rm.weight,
-                    energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor])
+                    energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor, allocatedVolume, Math.ceil(energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor - allocatedVolume)])
             }
         }
     }
