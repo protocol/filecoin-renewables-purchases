@@ -3006,8 +3006,10 @@ async function splitStep5(transactionFolder) {
 async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile, fromYear, fromQuarter, energyFactor) {
     const purchaseOrderFolderPathChunks = purchaseOrderFolder.split("/")
 
-    const purchaseOrderHeader = ['"quarter"', '"region"', '"value"']
-    const purchaseOrderColumnTypes = ["string", "string", "number"]
+    const purchaseOrderHeader = ['"Region"', '"Quarter"', '"Storage Provider"',
+        '"Energy upper bound [MWh]"', '"Energy upper bound * energy coeficient [MWh]"', '"Energy upper bound * energy coeficient * region weight [MWh]"', '"Energy upper bound * energy coeficient * region weight * progressive factor [MWh]"']
+    const purchaseOrderColumnTypes = ["string", "string", "string",
+        "number", "number", "number", "number"]
 
     let purchaseOrder = []
 
