@@ -3007,9 +3007,11 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
     const purchaseOrderFolderPathChunks = purchaseOrderFolder.split("/")
 
     const purchaseOrderHeader = ['"Region"', '"Quarter"', '"Storage Provider"',
-        '"Energy upper bound [MWh]"', '"Energy upper bound * energy coeficient [MWh]"', '"Energy upper bound * energy coeficient * region weight [MWh]"', '"Energy upper bound * energy coeficient * region weight * progressive factor [MWh]"']
+        '"Energy upper bound [MWh]"', '"Energy upper bound * energy coeficient [MWh]"', '"Energy upper bound * energy coeficient * region weight [MWh]"', '"Energy upper bound * energy coeficient * region weight * progressive factor [MWh]"',
+        '"Previously allocated RECs (proportional)"', '"Needed RECs"']
     const purchaseOrderColumnTypes = ["string", "string", "string",
-        "number", "number", "number", "number"]
+        "number", "number", "number", "number",
+        "number", "number"]
 
     let purchaseOrder = []
 
@@ -3072,8 +3074,7 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
         await new Promise(resolve => setTimeout(resolve, 1))
 
         let nercRegion = country
-//        if (country == "US") {
-        if (country == "US" && 0) {
+        if (country == "US") {
             const m = L.marker([location.lat, location.long])
             let found = false
             await nercGeoJsonLayer.eachLayer((layer) => {
@@ -3081,7 +3082,7 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
                 if(!found && layer.contains(m.getLatLng())) {
                     nercRegion = nercRegionName.substring(nercRegionName.indexOf("(")+1, nercRegionName.indexOf(")"))
                     found = true
-console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercRegion}`)
+                    console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercRegion}`)
 /*
                     switch (nercRegionName) {
                         case "WESTERN ELECTRICITY COORDINATING COUNCIL (WECC)":
@@ -3119,7 +3120,7 @@ console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercReg
         minersInRegion[nercRegion].push(JSON.parse(JSON.stringify(location)))
     }
 
-    console.log(minersInRegion)
+    console.dir(minersInRegion, {depth: null})
 
     const nercRegions = Object.keys(minersInRegion)
     for (const nr of nercRegions) {
@@ -3149,28 +3150,27 @@ console.log(`${location.region} (${location.lat}, ${location.long}) -> ${nercReg
                 for (const allocation of allocations) {
                     const contractId = allocation.contract_id
                     const volume = allocation.volume_MWh
-                    const contract = previousContracts.filter((c) => {return c.contract_id == contractId})
+                    const contract = previousContracts.filter((c) => {return c.contract_id == contractId})[0]
                     const reportingStart = moment(contract.reportingStart, "YYYY-MM-DD")
                     const reportingEnd = moment(contract.reportingEnd, "YYYY-MM-DD")
                     const quarterStart = moment(quarterObj.quarterStart, "YYYY-MM-DD")
                     const quarterEnd = moment(quarterObj.quarterEnd, "YYYY-MM-DD")
-
                     if(reportingStart.isSameOrBefore(quarterEnd)
                         && reportingEnd.isSameOrAfter(quarterStart)) {
                             const start = (reportingStart.isSameOrAfter(quarterStart)) ? reportingStart : quarterStart
                             const end = (reportingEnd.isSameOrBefore(quarterEnd)) ? reportingEnd : quarterEnd
-                            const overlap = (end.diff(start, 'days')) / quarterObj.daysInQuarter
-                            allocatedVolume += overlap * volume
-console.log(`${volume}, ${reportingStart.format("YYYY-MM-DD")}, ${reportingEnd.format("YYYY-MM-DD")}, ${quarterStart.format("YYYY-MM-DD")}, ${quarterEnd.format("YYYY-MM-DD")}, ${start.format("YYYY-MM-DD")}, ${end.format("YYYY-MM-DD")}, ${overlap}, ${allocatedVolume}`)
+                            const overlap = (end.diff(start, 'days')) / (reportingEnd.diff(reportingStart, 'days'))
+                            allocatedVolume += Math.round(overlap * volume)
+                            console.log(`${volume}, ${reportingStart.format("YYYY-MM-DD")}, ${reportingEnd.format("YYYY-MM-DD")}, ${quarterStart.format("YYYY-MM-DD")}, ${quarterEnd.format("YYYY-MM-DD")}, ${start.format("YYYY-MM-DD")}, ${end.format("YYYY-MM-DD")}, ${overlap}, ${overlap * volume}, ${allocatedVolume}`)
                         }
                 }
                 const energyUpperBound = (await _totalEnergyFromModel(quarterObj.quarterStart, quarterObj.quarterEnd,
                     rm.provider)).total_energy_upper_MWh
                 const progressiveFactor = (quarterObj.daysLeftInQuarter > 1) ? (quarterObj.daysInQuarter/(quarterObj.daysInQuarter - quarterObj.daysLeftInQuarter)) : 1
-console.log(`${nr}, ${quarterObj.year}-${quarterObj.quarter}, ${rm.provider}, ${energyUpperBound}, ${energyUpperBound * parseFloat(energyFactor)}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor}, ${allocatedVolume}, ${Match.ceil(energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor - allocatedVolume)}`)
+                console.log(`${nr}, ${quarterObj.year}-${quarterObj.quarter}, ${rm.provider}, ${energyUpperBound}, ${energyUpperBound * parseFloat(energyFactor)}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight}, ${energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor}, ${allocatedVolume}, ${Math.ceil(energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor) - allocatedVolume}`)
                 purchaseOrder.push([nr, `${quarterObj.year}-${quarterObj.quarter}`, rm.provider,
                     energyUpperBound, energyUpperBound * parseFloat(energyFactor), energyUpperBound * parseFloat(energyFactor) * rm.weight,
-                    energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor, allocatedVolume, Math.ceil(energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor - allocatedVolume)])
+                    energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor, allocatedVolume, Math.ceil(energyUpperBound * parseFloat(energyFactor) * rm.weight * progressiveFactor) - allocatedVolume])
             }
         }
     }
