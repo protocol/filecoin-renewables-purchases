@@ -1,0 +1,47 @@
+country_name,country_code,region,energy_MWh
+China,CN,,460100
+"Korea, Republic of",KR,,106015
+Singapore,SG,,59415
+Hong Kong,HK,,57289
+United States of America,US,SERC,53801
+VietNam,VN,,42642
+United States of America,US,SPP,20245
+Germany,DE,,17741
+United States of America,US,RFC,15060
+United States of America,US,WECC,13391
+Canada,CA,,11322
+Netherlands,NL,,10426
+United States of America,US,MRO,6485
+Japan,JP,,4055
+Russian Federation,RU,,2228
+Ireland,IE,,2211
+Iceland,IS,,2028
+Belgium,BE,,1785
+United Kingdom of Great Britain and Northern Ireland,GB,,1343
+Australia,AU,,1170
+United States of America,US,TRE,1010
+Norway,NO,,829
+France,FR,,733
+Indonesia,ID,,649
+United States of America,US,,639
+Latvia,LV,,547
+Ukraine,UA,,368
+United States of America,US,NPCC,353
+Taiwan,TW,,352
+Austria,AT,,337
+Bulgaria,BG,,280
+Slovenia,SI,,168
+Israel,IL,,145
+Denmark,DK,,143
+Poland,PL,,62
+New Zealand,NZ,,47
+Spain,ES,,30
+Czechia,CZ,,28
+Nigeria,NG,,23
+Romania,RO,,20
+Switzerland,CH,,19
+Sweden,SE,,13
+Finland,FI,,13
+Italy,IT,,8
+Portugal,PT,,6
+Serbia,RS,,5

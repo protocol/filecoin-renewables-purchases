@@ -1,0 +1,63 @@
+country_name,country_code,region,energy_MWh
+China,CN,,3366096
+United States of America,US,SPP,1753272
+Hong Kong,HK,,948208
+Germany,DE,,784441
+Singapore,SG,,585151
+VietNam,VN,,469028
+"Korea, Republic of",KR,,382513
+United States of America,US,SERC,119191
+United States of America,US,WECC,104329
+Australia,AU,,61053
+United States of America,US,FRCC,60462
+United States of America,US,RFC,53309
+Japan,JP,,48280
+Canada,CA,,47282
+United Arab Emirates,AE,,27648
+Netherlands,NL,,15295
+United States of America,US,MRO,13742
+Sri Lanka,LK,,11689
+Belgium,BE,,11568
+Ukraine,UA,,10519
+Russian Federation,RU,,8968
+Norway,NO,,7106
+Ghana,GH,,5318
+Ireland,IE,,4981
+Spain,ES,,4483
+Indonesia,ID,,3823
+India,IN,,3700
+Thailand,TH,,3436
+Slovakia,SK,,2901
+Italy,IT,,2767
+Romania,RO,,2121
+United States of America,US,NPCC,2099
+Iceland,IS,,2028
+Brazil,BR,,2021
+New Zealand,NZ,,1860
+Mexico,MX,,1579
+Malaysia,MY,,1490
+United Kingdom of Great Britain and Northern Ireland,GB,,1421
+North Macedonia,MK,,1221
+United States of America,US,TRE,1096
+Denmark,DK,,1039
+Greece,GR,,997
+United States of America,US,,937
+Philippines,PH,,800
+France,FR,,767
+Latvia,LV,,649
+Taiwan,TW,,649
+Finland,FI,,459
+Poland,PL,,451
+Austria,AT,,337
+Bulgaria,BG,,280
+Slovenia,SI,,168
+Iran (Islamic Republic of),IR,,149
+Israel,IL,,145
+Argentina,AR,,79
+Belarus,BY,,37
+Czechia,CZ,,28
+Switzerland,CH,,27
+Sweden,SE,,23
+Nigeria,NG,,23
+Serbia,RS,,21
+Portugal,PT,,6
