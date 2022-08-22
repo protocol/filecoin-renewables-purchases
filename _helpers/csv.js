@@ -26,6 +26,7 @@ let minersLocationsFile
 let minersLocationsFileWithLatLng
 let purchaseOrderFolderChunks, purchaseOrderFolderName
 let nercGeoJsonFile
+let externalBatchesFile
 
 const step2FileNameSuffix = "_step2_orderSupply.csv"
 const step3FileNameSuffix = "_step3_match.csv"
@@ -436,6 +437,7 @@ switch (activities) {
         const redemptionsSheetName = args[10]
         const beneficiariesSheetName = args[11]
         minersLocationsFile = args[12]
+        externalBatchesFile = args[13]
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
@@ -449,7 +451,7 @@ switch (activities) {
         // Create step 5 CSV
         step5Csv = await createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType,
             smartContractAddress, Number(batchId), format, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
-            minersLocationsFile)
+            minersLocationsFile, externalBatchesFile)
         if(step5Csv == null) {
             console.error(`Error! Could not create step 5 CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -2857,7 +2859,7 @@ function _onlyUnique(value, index, self) {
 // Create step 5 CSV
 async function createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType,
     smartContractAddress, batchId, format, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
-    minersLocationsFile) {
+    minersLocationsFile, externalBatchesFile) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -2875,6 +2877,12 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
         "string", "string", "string", "string",
         "string", "string", "string", "string", "string"]
 
+    let externalBatches = []
+    if(externalBatchesFile != undefined) {
+        externalBatches = (await getCsvAndParseToJson(`./${externalBatchesFile}`))
+            .map((b) => {return b.batch})
+    }
+    
     let step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
     // Filter only ones already matched against miner IDs
     step2 = step2.filter((c) => {
@@ -2960,15 +2968,24 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
             }]
         }
 
+        let skipBatches = 0
+        let batch = 0
         for (let attestationIndex = 0; attestationIndex < attestations.length; attestationIndex++) {
+            // make sure batchId is not in external batches list
+            batch = batchId + step5.length + skipBatches
+            while(externalBatches.indexOf(batch) != -1) {
+                skipBatches++
+                batch = batchId + step5.length + skipBatches
+            }
+
             const attestation = attestations[attestationIndex]
             switch (format) {
                 case "long":
-                    beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batchId + step5.length} ${(attestation.minerId != null) ? '- Filecoin minerID ' + attestation.minerId : ''}`
-                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${batchId + step5.length}. The certificates will be created as tokens of type ${attestation.tokenType} ${(attestation.minerId != null) ? 'This redemption is matched to Filecoin minerID ' + attestation.minerId : ''}`
+                    beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batch} ${(attestation.minerId != null) ? '- Filecoin minerID ' + attestation.minerId : ''}`
+                    redemptionPurpose = `The certificates are redeemed (= assigned to the beneficiary) for the purpose of tokenization and bridging to the Blockchain: Energy Web Chain with the Network ID ${attestation.networkId}. The smart contract address is ${attestation.smartContractAddress} and the specific certificate batch ID is ${batch}. The certificates will be created as tokens of type ${attestation.tokenType} ${(attestation.minerId != null) ? 'This redemption is matched to Filecoin minerID ' + attestation.minerId : ''}`
                     break
                 case "short":
-                    beneficiary = `${attestation.smartContractAddress}-${batchId + step5.length}`
+                    beneficiary = `${attestation.smartContractAddress}-${batch}`
                     redemptionPurpose = `${attestation.tokenizationProtocol}-NWID${attestation.networkId}-${attestation.tokenType}`
                     break
                 default:
@@ -2984,7 +3001,7 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                 contract_id: attestation.contractId,
                 allocation_id: attestation.allocationId,
                 smart_contract_address: smartContractAddress,
-                batchID: batchId + step5.length,
+                batchID: batch,
                 network: networkId,
                 zl_protocol_version: tokenizationProtocol,
                 minerID: attestation.minerId,
