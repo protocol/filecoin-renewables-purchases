@@ -26,6 +26,7 @@ let minersLocationsFile
 let minersLocationsFileWithLatLng
 let purchaseOrderFolderChunks, purchaseOrderFolderName
 let nercGeoJsonFile
+let nercRegionsMappingFile
 let externalBatchesFile
 
 const step2FileNameSuffix = "_step2_orderSupply.csv"
@@ -513,6 +514,7 @@ switch (activities) {
         const fromYear = args[4]
         const fromQuarter = args[5]
         const energyFactor = args[6]
+        nercRegionsMappingFile = args[7]
 
         purchaseOrderFolderChunks = purchaseOrderFolder.split("/")
         purchaseOrderFolderName = purchaseOrderFolderChunks[purchaseOrderFolderChunks.length-1]
@@ -526,7 +528,7 @@ switch (activities) {
 
         // Create purchase order CSV
         purchaseOrderCsv = await createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile,
-            fromYear, fromQuarter, energyFactor)
+            fromYear, fromQuarter, energyFactor, nercRegionsMappingFile)
         if(purchaseOrderCsv == null) {
             console.error(`Error! Could not create purchase order CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -549,6 +551,7 @@ switch (activities) {
         assetsFolder = args[1]
         minersLocationsFile = args[2]
         nercGeoJsonFile = args[3]
+        nercRegionsMappingFile = args[4]
 
         assetsFolderChunks = assetsFolder.split("/")
         assetsFolderName = assetsFolderChunks[assetsFolderChunks.length-1]
@@ -560,7 +563,7 @@ switch (activities) {
         }
 
         // Create purchase order CSV
-        const gridRegions = await createGridRegions(assetsFolder, minersLocationsFile, nercGeoJsonFile)
+        const gridRegions = await createGridRegions(assetsFolder, minersLocationsFile, nercGeoJsonFile, nercRegionsMappingFile)
 
         try {
             // Bakup existing file
@@ -2357,7 +2360,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                         const gridMiners = gridMinersSplit[grid]
                         const minerMatch = gridMiners.filter((gm) =>  {
                             return gm.provider == miner.minerId
-                                && gm.country == country
+                                && (gm.country == country || gm.nercRegion == country)
                                 && ((region != null) ? gm.nercRegion == region : true)
                             }
                         )
@@ -2559,8 +2562,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
                 const gridMiners = gridMinersSplit[grid]
                 const minerMatch = gridMiners.filter((gm) =>  {
                     return gm.provider == miner.minerId
-                        && gm.country == country
-                        && ((country == "US") ? gm.nercRegion == region : true)
+                        && (gm.country == country || gm.nercRegion == country)
+                        && ((region != null) ? gm.nercRegion == region : true)
                 }
     )
                 if(minerMatch.length) {
@@ -3125,7 +3128,7 @@ async function splitStep5(transactionFolder) {
 }
 
 // Create purchase order CSV
-async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile, fromYear, fromQuarter, energyFactor) {
+async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, nercGeoJsonFile, fromYear, fromQuarter, energyFactor, nercRegionsMappingFile) {
     const purchaseOrderFolderPathChunks = purchaseOrderFolder.split("/")
 
     const purchaseOrderHeader = ['"Region"', '"Quarter"', '"Storage Provider"',
@@ -3175,6 +3178,17 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
 
     const nercGeoJsonLayer = L.geoJSON(nercGeoJson).addTo(map)
 
+    let nercRegionsMapping = {}
+    if(nercRegionsMappingFile != undefined) {
+        const nercRegionsMappingFilePath = `./${assetsFolder}/_assets/${nercRegionsMappingFile}`
+        nercRegionsMapping = await fs.promises.readFile(nercRegionsMappingFilePath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+        nercRegionsMapping = JSON.parse(nercRegionsMapping)
+    }
+    let regionsWithMappings = Object.keys(nercRegionsMapping)
+
     let minersInRegion = {}
 
     for (const location of syntheticLocations) {
@@ -3195,8 +3209,8 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
 
         await new Promise(resolve => setTimeout(resolve, 1))
 
-        let nercRegion = country
-        if (country == "US") {
+        let nercRegion = (regionsWithMappings.indexOf(country) > -1) ? nercRegionsMapping[country] : country
+        if (region != null) {
             const m = L.marker([location.lat, location.long])
             let found = false
             await nercGeoJsonLayer.eachLayer((layer) => {
@@ -3314,7 +3328,7 @@ async function createPurchaseOrder(purchaseOrderFolder, minersLocationsFile, ner
     })
 }
 
-async function createGridRegions(assetsFolder, minersLocationsFile, nercGeoJsonFile) {
+async function createGridRegions(assetsFolder, minersLocationsFile, nercGeoJsonFile, nercRegionsMappingFile) {
     let gridMiners = {}
 
     const syntheticLocationsFilePath = `./${assetsFolder}/_assets/${minersLocationsFile}`
@@ -3336,6 +3350,17 @@ async function createGridRegions(assetsFolder, minersLocationsFile, nercGeoJsonF
 
     const nercGeoJsonLayer = L.geoJSON(nercGeoJson).addTo(map)
 
+    let nercRegionsMapping = {}
+    if(nercRegionsMappingFile != undefined) {
+        const nercRegionsMappingFilePath = `./${assetsFolder}/_assets/${nercRegionsMappingFile}`
+        nercRegionsMapping = await fs.promises.readFile(nercRegionsMappingFilePath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+        nercRegionsMapping = JSON.parse(nercRegionsMapping)
+    }
+    let regionsWithMappings = Object.keys(nercRegionsMapping)
+
     let minersInRegion = {}
 
     for (const location of syntheticLocations) {
@@ -3356,8 +3381,8 @@ async function createGridRegions(assetsFolder, minersLocationsFile, nercGeoJsonF
 
         await new Promise(resolve => setTimeout(resolve, 1))
 
-        let nercRegion = country
-        if (country == "US") {
+        let nercRegion = (regionsWithMappings.indexOf(country) > -1) ? nercRegionsMapping[country] : country
+        if (region != null) {
             const m = L.marker([location.lat, location.long])
             let found = false
             await nercGeoJsonLayer.eachLayer((layer) => {
