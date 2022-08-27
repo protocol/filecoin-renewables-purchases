@@ -382,9 +382,8 @@ switch (activities) {
         minersLocationsFile = args[2]
         minersLocationsFileWithLatLng = args[3]
         const priorityMinersFile = args[4]
-        const nercFile = args[5]
+        const gridMinersSplitFile = args[5]
         let recsMultFactor = args[6]
-        const gridMinersSplitFile = args[7]
 
         if(recsMultFactor == undefined)
             recsMultFactor = 1.5
@@ -394,14 +393,14 @@ switch (activities) {
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
 
-        if(transactionFolder == null || minersLocationsFile == null || minersLocationsFileWithLatLng == null || priorityMinersFile == null || nercFile == null) {
-            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, miner locations with latitutde and longitude, priority miners and nerc file paths are required parameters.`)
+        if(transactionFolder == null || minersLocationsFile == null || minersLocationsFileWithLatLng == null || priorityMinersFile == null || gridMinersSplitFile == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, miner locations with latitutde and longitude, priority miners and grid split file paths are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Create step 3 CSV and update step 2 CSV
-        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, nercFile, recsMultFactor, gridMinersSplitFile)
+        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, gridMinersSplitFile, recsMultFactor)
         if(createStep3Response == null) {
             console.error(`Error! Could not create step 3 CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -1951,7 +1950,7 @@ async function unquoteStep6NumericFields(attestationFolder) {
 }
 
 // Create step 3 CSV
-async function createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, nercFile, recsMultFactor = 1.5, gridMinersSplitFile) {
+async function createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, gridMinersSplitFile, recsMultFactor = 1.5) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -1981,9 +1980,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
     let miners = []
     let previousAllocations = []
     let previousContracts = []
-    let syntheticLocationsObj = {}
     let startingContracts = [], contracts = [], consumedContracts = []
-    let nercFilePath
     let gridMinersSplit = null
     try {
         let estuaryActiveMiners = (await axios("https://api.estuary.tech/public/miners", {
@@ -2050,7 +2047,13 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
             console.log(`Step 3 CSV (allocations file) for ${transactionFolder} is not created yet`)
         }
 
-        nercFilePath = `./${transactionFolder}/_assets/${nercFile}`
+        // Load grid miners split file
+        const gridMinersSplitPath = `./${transactionFolder}/_assets/${gridMinersSplitFile}`
+        gridMinersSplit = await fs.promises.readFile(gridMinersSplitPath, {
+            encoding:'utf8',
+            flag:'r'
+        })
+        gridMinersSplit = JSON.parse(gridMinersSplit)
     }
     catch (error)
     {
@@ -2058,42 +2061,6 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         return new Promise((resolve) => {
             resolve(null)
         })
-    }
-
-    // Load grid miners split file if provided
-    if(gridMinersSplitFile != undefined) {
-        try {
-            const gridMinersSplitPath = `./${transactionFolder}/_assets/${gridMinersSplitFile}`
-            gridMinersSplit = await fs.promises.readFile(gridMinersSplitPath, {
-                encoding:'utf8',
-                flag:'r'
-            })
-            gridMinersSplit = JSON.parse(gridMinersSplit)
-        } catch (error) {
-            console.log('Can not find Grid split file for miners so all energy consumptions will be calculated with weight 1 (100%)')
-        }
-    }
-    else {
-        console.log('Grid split for miners is not provided so all energy consumptions will be calculated with weight 1 (100%)')
-    }
-
-    // Make from syntheticLocations an object with minerId as a key
-    for (const rec of syntheticLocations) {
-        const loc = rec["region"].split("-")
-        if(syntheticLocationsObj[rec["provider"]] == null) {
-            syntheticLocationsObj[rec["provider"]] = [{
-                "country": loc[0],
-                "state": (loc[1] != undefined) ? ((loc[1] != "XX") ? loc[1] : null) : null,
-                "hasDelegate": rec["delegate"] != null
-            }]
-        }
-        else {
-            syntheticLocationsObj[rec["provider"]].push({
-                "country": loc[0],
-                "state": (loc[1] != undefined) ? ((loc[1] != "XX") ? loc[1] : null) : null,
-                "hasDelegate": rec["delegate"] != null
-            })
-        }
     }
 
     const transactionFolders = fs.readdirSync("./").filter((file) => {
@@ -2118,13 +2085,15 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
     let minersBatchIndex = 0
     let minersBatch = miners[minersBatchIndex]
 
+console.log(contracts.length, minersBatch.length)
+
     while(contracts.length && minersBatch && minersBatch.length) {
         console.log(`minersBatchIndex ${minersBatchIndex}, minersBatch.length: ${minersBatch.length},\n minersBatch:`)
         console.dir(minersBatch, {depth: null})
 
         let step = await _consumeContracts(transactionFolderName, minersBatch, minersEnergyData,
-            syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts,
-            consumedContracts, contracts, step3, recsMultFactor, gridMinersSplit)
+            previousAllocations, previousContracts, consumedContracts, contracts, step3,
+            gridMinersSplit, recsMultFactor)
         minersEnergyData = step.minersEnergyData
         previousContracts = step.previousContracts
         previousAllocations = step.previousAllocations
@@ -2156,24 +2125,16 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
             // Find a miner (and its location) from that country/region
             let minersInRegion = []
             if(region != null) {
-                const nerc = await _getNerc(nercFilePath)
-                const states = nerc[region]
-                if(states != null && states.length) {
-                    for (const state of states) {
-                        minersInRegion = minersInRegion.concat(syntheticLocationsWithLatLng
-                            .filter((m) => {return m.region.indexOf(`${country}-${state}`) == 0}))
-                    }
-                }
-                else {
+                let regionMiners = gridMinersSplit[region]
+                    .map((rm) => {return rm.provider})
                     minersInRegion = syntheticLocationsWithLatLng
-                        .filter((m) => {return m.region.indexOf(country) == 0})
-                }
+                        .filter((slm) => {return regionMiners.indexOf(slm.provider) > -1})
             }
             else {
                 minersInRegion = syntheticLocationsWithLatLng
-                    .filter((m) => {return m.region.indexOf(country) == 0})
+                    .filter((m) => {return m.country == country})
             }
-            console.log(`${minersInRegion.length} miners found in region ${country}/${region}`)
+            console.log(`${minersInRegion.length} miners found in region ${(region != null) ? region : country}`)
 
             // Find center point for searching miners in a radius
             const minerPositions = minersInRegion
@@ -2198,23 +2159,26 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
                         const lng = m.long
                         return circle.contains(L.latLng(lat, lng))
                     })
+                    .map((m) => {
+                        m.weight = _getMinerWeight(m, gridMinersSplit)
+                        return m
+                    })
                 console.log(`${minersInRadius.length} miners found in radius ${radius/1000}km around ${minersCenter.lat}/${minersCenter.lng}`)
                 //  Remove radius and prepare for next lap
                 map.removeLayer(circle)
 
                 // Map to miner Ids
-                minersInRadius = minersInRadius
-                    .map((m) => {return m.provider})
+//                minersInRadius = minersInRadius
+//                    .map((m) => {return m.provider})
                 console.dir(minersInRadius, {depth: null})
 
                 let step = await _consumeContractRegardlessRegion(transactionFolderName, minersInRadius, minersEnergyData,
-                    previousAllocations, previousContracts, contract, step3, recsMultFactor, gridMinersSplit)
+                    previousAllocations, previousContracts, contract, step3, recsMultFactor)
                 contract = step.contract
                 minersEnergyData = step.minersEnergyData
                 previousContracts = step.previousContracts
                 previousAllocations = step.previousAllocations
                 step3 = step.step3
-
             }
 
             // Filter out all "empty" contracts
@@ -2282,27 +2246,8 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
 }
 
 async function _consumeContracts(transactionFolderName, miners, minersEnergyData,
-    syntheticLocationsObj, nercFilePath, previousAllocations, previousContracts,
-    consumedContracts, contracts, step3, recsMultFactor = 1.5, gridMinersSplit) {
-
-    // Add region properties to priority miners
-    miners = miners
-        .filter((m) => {return syntheticLocationsObj[m] != null})   // make sure we have location for this miner
-        .map(async (pm) => {
-            const minerWithLoc = await all(syntheticLocationsObj[pm].map(async (m) => {
-                return {
-                    "country": m.country,
-                    "state": m.state,
-                    "region": (m.country != "US") ? null : await _getNercRegion(m.state, nercFilePath),
-                    "hasDelegate": m.hasDelegate
-                }
-        }))
-        return {
-            "minerId": pm,
-            "locations": minerWithLoc
-        }
-    })
-    miners = await all(miners)
+    previousAllocations, previousContracts, consumedContracts, contracts,
+    step3, gridMinersSplit, recsMultFactor = 1.5) {
 
     // For each contract, find miners with matching coutry/region
     for (let contract of contracts) {
@@ -2318,167 +2263,152 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
         const country = contract.country
         const region = contract.region
 
+        // Check if we have region listed in existing grid regions
+        if(gridMinersSplit[(region != null) ? region : country] == undefined) {
+            console.log(`Grid region ${(region != null) ? region : country} is not listed in grid regions input file.`)
+            continue
+        }
+        
         for (const miner of miners) {
+            // Check if miner is in the grid region
+            const minersInGrid = gridMinersSplit[(region != null) ? region : country]
+            const minerInGridPos = minersInGrid.map((gm) => {return gm.provider}).indexOf(miner)
+            if(minerInGridPos == -1) {
+                console.log(`Miner ${miner} is not in ${(region != null) ? region : country} grid region.`)
+                continue
+            }
+
+            const minerInGrid = minersInGrid[minerInGridPos]
+            
             recsAvailable = (typeof contract.volume_MWh != "number")
                 ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
 
-            console.log(`Trying to allocate from contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) to miner ${miner.minerId}`)
+            console.log(`Trying to allocate from contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) to miner ${miner}`)
 
             if(recsAvailable <= 0) {
-                console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh}) for miner ${miner.minerId}`)
+                console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh}) for miner ${miner}`)
                 break
             }
 
-            let matchedGeography = false
-            let matchingGridGeography = null
-            for (const location of miner.locations) {
-                console.log(`Miner geography ${location.country}-${location.region}, Contract geography ${country}-${region}`)
-                matchedGeography = matchedGeography || (location.country == country && location.region == region)
-
-                if(matchedGeography) {
-                    matchingGridGeography = (location.region != null) ? `${location.country}-${location.region}` : location.country
-                    break
-                }
-            }
-
-            if(matchedGeography) {
-                console.log(`Miner ${miner.minerId} has matching geography ${matchingGridGeography}`)
-                // Get miner's energy consumption data
-                // for contract reporting period
-                const medIndex = `${miner.minerId}-${contract.reportingStart}-${contract.reportingEnd}`
-                console.log(`Get energy data for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd})`)
-                if(minersEnergyData[medIndex] == null)
+            // Get miner's energy consumption data
+            // for contract reporting period
+            const medIndex = `${miner}-${contract.reportingStart}-${contract.reportingEnd}`
+            console.log(`Get energy data for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
+            if(minersEnergyData[medIndex] == null)
 //                    minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner.minerId)
-                    minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), moment(contract.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner.minerId)
-                console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd})`)
+                minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), moment(contract.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
+            console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
 
-                // Get grid split fopr miner
-                let minerSplit = 1
-                if(gridMinersSplit != undefined) {
-                    const grids = Object.keys(gridMinersSplit)
-                    for (const grid of grids) {
-                        const gridMiners = gridMinersSplit[grid]
-                        const minerMatch = gridMiners.filter((gm) =>  {
-                            return gm.provider == miner.minerId
-                                && (gm.country == country || gm.nercRegion == country)
-                                && ((region != null) ? gm.nercRegion == region : true)
-                            }
-                        )
-                        if(minerMatch.length) {
-                            minerSplit = minerMatch[0].weight
-                            break
-                        }
-                    }
-                    console.log(`Cumulative energy total (upper) per grid split (${minerSplit}) for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd}) is ${minersEnergyData[medIndex].total_energy_upper_MWh * minerSplit}`)
-                }
+            // Get grid split for miner
+            let minerSplit = minerInGrid.weight
+            console.log(`Cumulative energy total (upper) per grid split (${minerSplit}) for ${miner} (${contract.reportingStart}, ${contract.reportingEnd}) is ${minersEnergyData[medIndex].total_energy_upper_MWh * minerSplit}`)
 
-                let palloc = previousAllocations
-                .filter((a) => {
-                    return a != null && a.minerID == miner.minerId
-                })
-                .map((a) => {
-                    const pcontr = previousContracts
-                        .filter((c) => {
-                            return a.contract_id == c.contract_id
-                        })
-                        .map((c) => {
-                            return {
-                                "reportingStart": c.reportingStart,
-                                "reportingEnd": c.reportingEnd,
-                                "allocationGridGeography": (c.region != null) ? `${c.country}-${c.region}` : c.country
-                            }
+            let palloc = previousAllocations
+            .filter((a) => {
+                return a != null && a.minerID == miner
+            })
+            .map((a) => {
+                const pcontr = previousContracts
+                    .filter((c) => {
+                        return a.contract_id == c.contract_id
                     })
-                    return {
-                        "allocation": a.allocation_id,
-                        "contract": a.contract_id,
-                        "recs": a.volume_MWh,
-                        "defaulted": a.defaulted,
-                        "reportingStart": pcontr[0].reportingStart,
-                        "reportingEnd": pcontr[0].reportingEnd,
-                        "allocationGridGeography": pcontr[0].allocationGridGeography
-                    }
-                }).filter((a) => {
-                    const overlapingDateRanges = moment(a.reportingStart, "DD/MM/YYYY").isSameOrBefore(moment(contract.reportingEnd, "DD/MM/YYYY"))
-                        && moment(a.reportingEnd, "DD/MM/YYYY").isSameOrAfter(moment(contract.reportingStart, "DD/MM/YYYY"))
-                    return (overlapingDateRanges && !a.defaulted && a.allocationGridGeography == matchingGridGeography)
+                    .map((c) => {
+                        return {
+                            "reportingStart": c.reportingStart,
+                            "reportingEnd": c.reportingEnd,
+                            "allocationGridGeography": (c.region != null) ? c.region : c.country
+                        }
                 })
-                console.log(`Overlapping allocations:`)
-                console.dir(palloc, {depth: null})
-                if(minersEnergyData[medIndex].total_energy_upper_MWh > 0) {
-                    const recsNeeded = Math.ceil(minersEnergyData[medIndex].total_energy_upper_MWh * minerSplit * recsMultFactor)
-                    const totalRecsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
-
-                    // We should decrease overlapping allocated volumes for periods/energy consuptions
-                    // which are out of curent contract allocation start/end period
-                    palloc = palloc
-                        .map(async (a) => {
-                            // Previous allocation starts before current contract allocation
-                            if(moment(a.reportingStart, "DD/MM/YYYY").isBefore(moment(contract.reportingStart, "DD/MM/YYYY"))) {
-                                // Deduct allocation amount for energy spent before currenct contract allocation
-                                const deductingPeriodEnd = moment(contract.reportingStart, "DD/MM/YYYY").add(-1, 'days').format('YYYY-MM-DD')
-                                const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(moment(a.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), deductingPeriodEnd, miner.minerId)
-                                const recsAllocatedBeforeCurrentAllocationStarts = Math.ceil(energySpentBeforeCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
-                                console.log(`Previous allocation start date ${a.reportingStart} is before current contract allocation start date ${contract.reportingStart}
-                                    so we will deduct ${recsAllocatedBeforeCurrentAllocationStarts} (${energySpentBeforeCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
-                                a.recs = (a.recs >= recsAllocatedBeforeCurrentAllocationStarts) ? a.recs - recsAllocatedBeforeCurrentAllocationStarts : 0
-                            }
-                            // Previous allocation ends after current contract allocation
-                            if(moment(a.reportingEnd, "DD/MM/YYYY").isAfter(moment(contract.reportingEnd, "DD/MM/YYYY"))) {
-                                // Deduct allocation amount for energy spent after currenct contract allocation
-                                const deductingPeriodStart = moment(contract.reportingEnd, "DD/MM/YYYY").add(1, 'days').format('YYYY-MM-DD')
-                                const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, moment(a.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner.minerId)
-                                const recsAllocatedAfterCurrentAllocationEnds = Math.ceil(energySpentAfterCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
-                                console.log(`Previous allocation end date ${a.reportingEnd} is after current contract allocation end date ${contract.reportingEnd}
-                                    so we will deduct ${recsAllocatedAfterCurrentAllocationEnds} (${energySpentAfterCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
-                                a.recs = (a.recs >= recsAllocatedAfterCurrentAllocationEnds) ? a.recs - recsAllocatedAfterCurrentAllocationEnds : 0
-                            }
-                            return a
-                        })
-                    palloc = await all(palloc)
-                    console.log(`Overlapping allocations (volumes after decreasing partial overlapping):`)
-                    console.dir(palloc, {depth: null})
-
-                    const recsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
-
-                    console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner.minerId}
-                        recsNeeded ${recsNeeded} recsAllocated ${recsAllocated} (totalRecsAllocated ${totalRecsAllocated})`)
-
-                    // If we have already allocated this miner what he needs
-                    // or we have no more RECs available with this contract, then skip it
-                    if(recsNeeded <= recsAllocated)
-                        continue
-                    const newlyAllocated = (recsAvailable >= (recsNeeded - recsAllocated))
-                        ? (recsNeeded - recsAllocated) : recsAvailable
-                    contract.volume_MWh = recsAvailable - newlyAllocated
-
-                    if(step3 == null)
-                        step3 = []
-
-                    const allocation = {
-                        allocation_id: `${transactionFolderName}_allocation_${step3.length+1}`,
-                        UUID: null,
-                        contract_id: contract.contract_id,
-                        minerID: miner.minerId,
-                        volume_MWh: newlyAllocated,
-                        defaulted: 0,
-                        step4_ZL_contract_complete: 0,
-                        step5_redemption_data_complete: 0,
-                        step6_attestation_info_complete: 0,
-                        step7_certificates_matched_to_supply: 0,
-                        step8_IPLDrecord_complete: 0,
-                        step9_transaction_complete: 0,
-                        step10_volta_complete: 0,
-                        step11_finalRecord_complete: 0
-                    }
-                    step3.push(allocation)
-                    previousAllocations.push(allocation)
-                    console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner.minerId}
-                        recsNeeded ${recsNeeded} recsAllocated ${recsAllocated} newlyAllocated ${newlyAllocated}`)
-                    console.log(allocation)
-                    const pcIds = previousContracts.map((pc) => {return pc.contract_id})
-                    if(pcIds.indexOf(contract.contract_id) == -1)
-                        previousContracts.push(contract)
+                return {
+                    "allocation": a.allocation_id,
+                    "contract": a.contract_id,
+                    "recs": a.volume_MWh,
+                    "defaulted": a.defaulted,
+                    "reportingStart": pcontr[0].reportingStart,
+                    "reportingEnd": pcontr[0].reportingEnd,
+                    "allocationGridGeography": pcontr[0].allocationGridGeography
                 }
+            }).filter((a) => {
+                const overlapingDateRanges = moment(a.reportingStart, "DD/MM/YYYY").isSameOrBefore(moment(contract.reportingEnd, "DD/MM/YYYY"))
+                    && moment(a.reportingEnd, "DD/MM/YYYY").isSameOrAfter(moment(contract.reportingStart, "DD/MM/YYYY"))
+                return (overlapingDateRanges && !a.defaulted && a.allocationGridGeography == minerInGrid.nercRegion)
+            })
+            console.log(`Overlapping allocations:`)
+            console.dir(palloc, {depth: null})
+            if(minersEnergyData[medIndex].total_energy_upper_MWh > 0) {
+                const recsNeeded = Math.ceil(minersEnergyData[medIndex].total_energy_upper_MWh * minerSplit * recsMultFactor)
+                const totalRecsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
+
+                // We should decrease overlapping allocated volumes for periods/energy consuptions
+                // which are out of curent contract allocation start/end period
+                palloc = palloc
+                    .map(async (a) => {
+                        // Previous allocation starts before current contract allocation
+                        if(moment(a.reportingStart, "DD/MM/YYYY").isBefore(moment(contract.reportingStart, "DD/MM/YYYY"))) {
+                            // Deduct allocation amount for energy spent before currenct contract allocation
+                            const deductingPeriodEnd = moment(contract.reportingStart, "DD/MM/YYYY").add(-1, 'days').format('YYYY-MM-DD')
+                            const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(moment(a.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), deductingPeriodEnd, miner)
+                            const recsAllocatedBeforeCurrentAllocationStarts = Math.ceil(energySpentBeforeCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
+                            console.log(`Previous allocation start date ${a.reportingStart} is before current contract allocation start date ${contract.reportingStart}
+                                so we will deduct ${recsAllocatedBeforeCurrentAllocationStarts} (${energySpentBeforeCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
+                            a.recs = (a.recs >= recsAllocatedBeforeCurrentAllocationStarts) ? a.recs - recsAllocatedBeforeCurrentAllocationStarts : 0
+                        }
+                        // Previous allocation ends after current contract allocation
+                        if(moment(a.reportingEnd, "DD/MM/YYYY").isAfter(moment(contract.reportingEnd, "DD/MM/YYYY"))) {
+                            // Deduct allocation amount for energy spent after currenct contract allocation
+                            const deductingPeriodStart = moment(contract.reportingEnd, "DD/MM/YYYY").add(1, 'days').format('YYYY-MM-DD')
+                            const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, moment(a.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
+                            const recsAllocatedAfterCurrentAllocationEnds = Math.ceil(energySpentAfterCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
+                            console.log(`Previous allocation end date ${a.reportingEnd} is after current contract allocation end date ${contract.reportingEnd}
+                                so we will deduct ${recsAllocatedAfterCurrentAllocationEnds} (${energySpentAfterCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
+                            a.recs = (a.recs >= recsAllocatedAfterCurrentAllocationEnds) ? a.recs - recsAllocatedAfterCurrentAllocationEnds : 0
+                        }
+                        return a
+                    })
+                palloc = await all(palloc)
+                console.log(`Overlapping allocations (volumes after decreasing partial overlapping):`)
+                console.dir(palloc, {depth: null})
+
+                const recsAllocated = palloc.reduce((prev, elem) => prev + elem.recs, 0)
+
+                console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner}
+                    recsNeeded ${recsNeeded} recsAllocated ${recsAllocated} (totalRecsAllocated ${totalRecsAllocated})`)
+
+                // If we have already allocated this miner what he needs
+                // or we have no more RECs available with this contract, then skip it
+                if(recsNeeded <= recsAllocated)
+                    continue
+                const newlyAllocated = (recsAvailable >= (recsNeeded - recsAllocated))
+                    ? (recsNeeded - recsAllocated) : recsAvailable
+                contract.volume_MWh = recsAvailable - newlyAllocated
+
+                if(step3 == null)
+                    step3 = []
+
+                const allocation = {
+                    allocation_id: `${transactionFolderName}_allocation_${step3.length+1}`,
+                    UUID: null,
+                    contract_id: contract.contract_id,
+                    minerID: miner,
+                    volume_MWh: newlyAllocated,
+                    defaulted: 0,
+                    step4_ZL_contract_complete: 0,
+                    step5_redemption_data_complete: 0,
+                    step6_attestation_info_complete: 0,
+                    step7_certificates_matched_to_supply: 0,
+                    step8_IPLDrecord_complete: 0,
+                    step9_transaction_complete: 0,
+                    step10_volta_complete: 0,
+                    step11_finalRecord_complete: 0
+                }
+                step3.push(allocation)
+                previousAllocations.push(allocation)
+                console.log(`Contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) miner ${miner}
+                    recsNeeded ${recsNeeded} recsAllocated ${recsAllocated} newlyAllocated ${newlyAllocated}`)
+                console.log(allocation)
+                const pcIds = previousContracts.map((pc) => {return pc.contract_id})
+                if(pcIds.indexOf(contract.contract_id) == -1)
+                    previousContracts.push(contract)
             }
         }
     }
@@ -2514,7 +2444,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
 }
 
 async function _consumeContractRegardlessRegion(transactionFolderName, miners, minersEnergyData,
-    previousAllocations, previousContracts, contract, step3, recsMultFactor = 1.5, gridMinersSplit) {
+    previousAllocations, previousContracts, contract, step3, recsMultFactor = 1.5) {
 
     // Skip if contract has no more available credits left
     let recsAvailable = (typeof contract.volume_MWh != "number")
@@ -2534,7 +2464,10 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
     const country = contract.country
     const region = contract.region
 
-    for (const miner of miners) {
+    for (const minerObj of miners) {
+        const miner = minerObj.provider
+        const minerSplit = minerObj.weight
+
         recsAvailable = (typeof contract.volume_MWh != "number")
             ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
 
@@ -2553,26 +2486,6 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
 //                    minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner)
             minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), moment(contract.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
         console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
-
-        // Get grid split fopr miner
-        let minerSplit = 1
-        if(gridMinersSplit != undefined) {
-            const grids = Object.keys(gridMinersSplit)
-            for (const grid of grids) {
-                const gridMiners = gridMinersSplit[grid]
-                const minerMatch = gridMiners.filter((gm) =>  {
-                    return gm.provider == miner.minerId
-                        && (gm.country == country || gm.nercRegion == country)
-                        && ((region != null) ? gm.nercRegion == region : true)
-                }
-    )
-                if(minerMatch.length) {
-                    minerSplit = minerMatch[0].weight
-                    break
-                }
-            }
-            console.log(`Cumulative energy total (upper) per grid split (${minerSplit}) for ${miner.minerId} (${contract.reportingStart}, ${contract.reportingEnd}) is ${minersEnergyData[medIndex].total_energy_upper_MWh * minerSplit}`)
-        }
         
         let palloc = previousAllocations
         .filter((a) => {
@@ -2687,23 +2600,25 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
     }
 }
 
-async function _getNerc(nercFilePath) {
-    let nerc = await fs.promises.readFile(nercFilePath, {
-        encoding:'utf8',
-        flag:'r'
-    })
-    return JSON.parse(nerc)
-}
+function _getMinerWeight(miner, gridMinersSplit) {
+    let weight = 1
 
-async function _getNercRegion(state, nercFilePath) {
-    let nerc = _getNerc(nercFilePath)
-    for (const region in nerc) {
-        if(nerc[region].indexOf(state) > -1)
-            return region
+    const gridRegions = Object.keys(gridMinersSplit)
+    for (const gridRegion of gridRegions) {
+        const gridMiner = gridMinersSplit[gridRegion]
+            .filter((gm) => {return gm.provider == miner.provider
+                && gm.country == miner.country
+                && gm.region == miner.region})[0]
+        if(gridMiner != undefined) {
+            weight = gridMiner.weight
+            break
+        }
     }
-    return null
+
+    return weight
 }
 
+/*
 function _getFilecoinEnergyExportData(miner, dataType, start, end, limit, offset) {
     const self = this,
         getUri = 'https://api.filecoin.energy:443/models/export?code_name=' +
@@ -2819,7 +2734,7 @@ async function _totalEnergy(start, end, miner){
         'total_energy_upper_MWh' : totalEnergyUpperMWhRecalc
     }
 }
-
+*/
 function _getFilecoinEnergyModelData(miner, dataType, start, end, filter) {
     const self = this,
         getUri = 'https://api.filecoin.energy:443/models/model?code_name=' +

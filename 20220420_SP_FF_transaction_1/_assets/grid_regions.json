@@ -42267,6 +42267,48 @@
     ],
     "RFC": [
         {
+            "provider": "f0838873",
+            "country": "US",
+            "region": "US-WA",
+            "nercRegion": "RFC",
+            "weight": 0.25
+        },
+        {
+            "provider": "f0434480",
+            "country": "US",
+            "region": "US-PA",
+            "nercRegion": "RFC",
+            "weight": 1
+        },
+        {
+            "provider": "f01826669",
+            "country": "US",
+            "region": "US-PA",
+            "nercRegion": "RFC",
+            "weight": 1
+        },
+        {
+            "provider": "f0242416",
+            "country": "US",
+            "region": "US-NJ",
+            "nercRegion": "RFC",
+            "weight": 1
+        },
+        {
+            "provider": "f0492030",
+            "country": "US",
+            "region": "US-NJ",
+            "nercRegion": "RFC",
+            "weight": 1
+        },
+        {
+            "provider": "f02540",
+            "country": "US",
+            "region": "US-NJ",
+            "nercRegion": "RFC",
+            "weight": 1
+        },
+        {
             "provider": "f01278",
             "country": "US",
             "region": "US-MI",
@@ -42809,6 +42851,20 @@
         }
     ],
     "WECC": [
+        {
+            "provider": "f01137729",
+            "country": "US",
+            "region": "US-WA",
+            "nercRegion": "WECC",
+            "weight": 0.5
+        },
+        {
+            "provider": "f020940",
+            "country": "US",
+            "region": "US-WA",
+            "nercRegion": "WECC",
+            "weight": 0.5
+        },
         {
             "provider": "f02301",
             "country": "US",
@@ -43738,148 +43794,6 @@
             "country": "US",
             "region": "US-CA",
             "nercRegion": "WECC",
-            "weight": 1
-        }
-    ],
-    "US": [
-        {
-            "provider": "f02385",
-            "country": "US",
-            "region": "US-NY",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f02540",
-            "country": "US",
-            "region": "US-NJ",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f010009",
-            "country": "US",
-            "region": "US-NY",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f010593",
-            "country": "US",
-            "region": "US-NY",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f015927",
-            "country": "US",
-            "region": "US-NY",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f020940",
-            "country": "US",
-            "region": "US-WA",
-            "nercRegion": "US",
-            "weight": 0.5
-        },
-        {
-            "provider": "f032824",
-            "country": "US",
-            "region": "US-TX",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f058369",
-            "country": "US",
-            "region": "US-MA",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f0116766",
-            "country": "US",
-            "region": "US-MA",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f0242416",
-            "country": "US",
-            "region": "US-NJ",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f0434480",
-            "country": "US",
-            "region": "US-PA",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f0492030",
-            "country": "US",
-            "region": "US-NJ",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f0677977",
-            "country": "US",
-            "region": "US-MA",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f0838873",
-            "country": "US",
-            "region": "US-WA",
-            "nercRegion": "US",
-            "weight": 0.25
-        },
-        {
-            "provider": "f01095191",
-            "country": "US",
-            "region": "US-FL",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f01137729",
-            "country": "US",
-            "region": "US-WA",
-            "nercRegion": "US",
-            "weight": 0.5
-        },
-        {
-            "provider": "f01152332",
-            "country": "US",
-            "region": "US-MA",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f01251209",
-            "country": "US",
-            "region": "US-TX",
-            "nercRegion": "US",
-            "weight": 0.5
-        },
-        {
-            "provider": "f01381814",
-            "country": "US",
-            "region": "US-TX",
-            "nercRegion": "US",
-            "weight": 1
-        },
-        {
-            "provider": "f01826669",
-            "country": "US",
-            "region": "US-PA",
-            "nercRegion": "US",
             "weight": 1
         }
     ],
@@ -44933,6 +44847,62 @@
     ],
     "NPCC": [
         {
+            "provider": "f058369",
+            "country": "US",
+            "region": "US-MA",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f0116766",
+            "country": "US",
+            "region": "US-MA",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f0677977",
+            "country": "US",
+            "region": "US-MA",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f01152332",
+            "country": "US",
+            "region": "US-MA",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f015927",
+            "country": "US",
+            "region": "US-NY",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f010593",
+            "country": "US",
+            "region": "US-NY",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f010009",
+            "country": "US",
+            "region": "US-NY",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
+            "provider": "f02385",
+            "country": "US",
+            "region": "US-NY",
+            "nercRegion": "NPCC",
+            "weight": 1
+        },
+        {
             "provider": "f010257",
             "country": "US",
             "region": "US-NY",
@@ -45687,6 +45657,27 @@
     ],
     "TRE": [
         {
+            "provider": "f01251209",
+            "country": "US",
+            "region": "US-TX",
+            "nercRegion": "TRE",
+            "weight": 0.5
+        },
+        {
+            "provider": "f01381814",
+            "country": "US",
+            "region": "US-TX",
+            "nercRegion": "TRE",
+            "weight": 1
+        },
+        {
+            "provider": "f032824",
+            "country": "US",
+            "region": "US-TX",
+            "nercRegion": "TRE",
+            "weight": 1
+        },
+        {
             "provider": "f066596",
             "country": "US",
             "region": "US-TX",
@@ -45737,6 +45728,13 @@
         }
     ],
     "FRCC": [
+        {
+            "provider": "f01095191",
+            "country": "US",
+            "region": "US-FL",
+            "nercRegion": "FRCC",
+            "weight": 1
+        },
         {
             "provider": "f079787",
             "country": "US",
