@@ -2035,7 +2035,7 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
 
         // Filter future contracts and ones already matched against miner IDs
         contracts = contracts.filter((c) => {
-            return moment(c.reportingEnd, "DD/MM/YYYY").isSameOrBefore(moment()) && c.step3_match_complete == 0
+            return moment(c.reportingEnd, "YYYY-MM-DD").isSameOrBefore(moment()) && c.step3_match_complete == 0
         })
 
         // Load previous allocations (step3 CSV if it exists)
@@ -2296,7 +2296,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
             console.log(`Get energy data for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
             if(minersEnergyData[medIndex] == null)
 //                    minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner.minerId)
-                minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), moment(contract.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
+                minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), moment(contract.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"), miner)
             console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
 
             // Get grid split for miner
@@ -2329,8 +2329,8 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                     "allocationGridGeography": pcontr[0].allocationGridGeography
                 }
             }).filter((a) => {
-                const overlapingDateRanges = moment(a.reportingStart, "DD/MM/YYYY").isSameOrBefore(moment(contract.reportingEnd, "DD/MM/YYYY"))
-                    && moment(a.reportingEnd, "DD/MM/YYYY").isSameOrAfter(moment(contract.reportingStart, "DD/MM/YYYY"))
+                const overlapingDateRanges = moment(a.reportingStart, "YYYY-MM-DD").isSameOrBefore(moment(contract.reportingEnd, "YYYY-MM-DD"))
+                    && moment(a.reportingEnd, "YYYY-MM-DD").isSameOrAfter(moment(contract.reportingStart, "YYYY-MM-DD"))
                 return (overlapingDateRanges && !a.defaulted && a.allocationGridGeography == minerInGrid.nercRegion)
             })
             console.log(`Overlapping allocations:`)
@@ -2344,20 +2344,20 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                 palloc = palloc
                     .map(async (a) => {
                         // Previous allocation starts before current contract allocation
-                        if(moment(a.reportingStart, "DD/MM/YYYY").isBefore(moment(contract.reportingStart, "DD/MM/YYYY"))) {
+                        if(moment(a.reportingStart, "YYYY-MM-DD").isBefore(moment(contract.reportingStart, "YYYY-MM-DD"))) {
                             // Deduct allocation amount for energy spent before currenct contract allocation
-                            const deductingPeriodEnd = moment(contract.reportingStart, "DD/MM/YYYY").add(-1, 'days').format('YYYY-MM-DD')
-                            const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(moment(a.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), deductingPeriodEnd, miner)
+                            const deductingPeriodEnd = moment(contract.reportingStart, "YYYY-MM-DD").add(-1, 'days').format('YYYY-MM-DD')
+                            const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(moment(a.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), deductingPeriodEnd, miner)
                             const recsAllocatedBeforeCurrentAllocationStarts = Math.ceil(energySpentBeforeCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
                             console.log(`Previous allocation start date ${a.reportingStart} is before current contract allocation start date ${contract.reportingStart}
                                 so we will deduct ${recsAllocatedBeforeCurrentAllocationStarts} (${energySpentBeforeCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
                             a.recs = (a.recs >= recsAllocatedBeforeCurrentAllocationStarts) ? a.recs - recsAllocatedBeforeCurrentAllocationStarts : 0
                         }
                         // Previous allocation ends after current contract allocation
-                        if(moment(a.reportingEnd, "DD/MM/YYYY").isAfter(moment(contract.reportingEnd, "DD/MM/YYYY"))) {
+                        if(moment(a.reportingEnd, "YYYY-MM-DD").isAfter(moment(contract.reportingEnd, "YYYY-MM-DD"))) {
                             // Deduct allocation amount for energy spent after currenct contract allocation
-                            const deductingPeriodStart = moment(contract.reportingEnd, "DD/MM/YYYY").add(1, 'days').format('YYYY-MM-DD')
-                            const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, moment(a.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
+                            const deductingPeriodStart = moment(contract.reportingEnd, "YYYY-MM-DD").add(1, 'days').format('YYYY-MM-DD')
+                            const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, moment(a.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"), miner)
                             const recsAllocatedAfterCurrentAllocationEnds = Math.ceil(energySpentAfterCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
                             console.log(`Previous allocation end date ${a.reportingEnd} is after current contract allocation end date ${contract.reportingEnd}
                                 so we will deduct ${recsAllocatedAfterCurrentAllocationEnds} (${energySpentAfterCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
@@ -2484,7 +2484,7 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
         console.log(`Get energy data for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
         if(minersEnergyData[medIndex] == null)
 //                    minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner)
-            minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), moment(contract.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
+            minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), moment(contract.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"), miner)
         console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
         
         let palloc = previousAllocations
@@ -2511,8 +2511,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
                 "reportingEnd": pcontr[0].reportingEnd
             }
         }).filter((a) => {
-            const overlapingDateRanges = moment(a.reportingStart, "DD/MM/YYYY").isSameOrBefore(moment(contract.reportingEnd, "DD/MM/YYYY"))
-                && moment(a.reportingEnd, "DD/MM/YYYY").isSameOrAfter(moment(contract.reportingStart, "DD/MM/YYYY"))
+            const overlapingDateRanges = moment(a.reportingStart, "YYYY-MM-DD").isSameOrBefore(moment(contract.reportingEnd, "YYYY-MM-DD"))
+                && moment(a.reportingEnd, "YYYY-MM-DD").isSameOrAfter(moment(contract.reportingStart, "YYYY-MM-DD"))
             return (overlapingDateRanges && !a.defaulted)
         })
         console.log(`Overlapping allocations:`)
@@ -2526,20 +2526,20 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
             palloc = palloc
                 .map(async (a) => {
                     // Previous allocation starts before current contract allocation
-                    if(moment(a.reportingStart, "DD/MM/YYYY").isBefore(moment(contract.reportingStart, "DD/MM/YYYY"))) {
+                    if(moment(a.reportingStart, "YYYY-MM-DD").isBefore(moment(contract.reportingStart, "YYYY-MM-DD"))) {
                         // Deduct allocation amount for energy spent before currenct contract allocation
-                        const deductingPeriodEnd = moment(contract.reportingStart, "DD/MM/YYYY").add(-1, 'days').format('YYYY-MM-DD')
-                        const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(moment(a.reportingStart, "DD/MM/YYYY").format("YYYY-MM-DD"), deductingPeriodEnd, miner)
+                        const deductingPeriodEnd = moment(contract.reportingStart, "YYYY-MM-DD").add(-1, 'days').format('YYYY-MM-DD')
+                        const energySpentBeforeCurrentAllocation = await _totalEnergyFromModel(moment(a.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), deductingPeriodEnd, miner)
                         const recsAllocatedBeforeCurrentAllocationStarts = Math.ceil(energySpentBeforeCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
                         console.log(`Previous allocation start date ${a.reportingStart} is before current contract allocation start date ${contract.reportingStart}
                             so we will deduct ${recsAllocatedBeforeCurrentAllocationStarts} (${energySpentBeforeCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
                         a.recs = (a.recs >= recsAllocatedBeforeCurrentAllocationStarts) ? a.recs - recsAllocatedBeforeCurrentAllocationStarts : 0
                     }
                     // Previous allocation ends after current contract allocation
-                    if(moment(a.reportingEnd, "DD/MM/YYYY").isAfter(moment(contract.reportingEnd, "DD/MM/YYYY"))) {
+                    if(moment(a.reportingEnd, "YYYY-MM-DD").isAfter(moment(contract.reportingEnd, "YYYY-MM-DD"))) {
                         // Deduct allocation amount for energy spent after currenct contract allocation
-                        const deductingPeriodStart = moment(contract.reportingEnd, "DD/MM/YYYY").add(1, 'days').format('YYYY-MM-DD')
-                        const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, moment(a.reportingEnd, "DD/MM/YYYY").format("YYYY-MM-DD"), miner)
+                        const deductingPeriodStart = moment(contract.reportingEnd, "YYYY-MM-DD").add(1, 'days').format('YYYY-MM-DD')
+                        const energySpentAfterCurrentAllocation = await _totalEnergyFromModel(deductingPeriodStart, moment(a.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"), miner)
                         const recsAllocatedAfterCurrentAllocationEnds = Math.ceil(energySpentAfterCurrentAllocation.total_energy_upper_MWh * recsMultFactor)
                         console.log(`Previous allocation end date ${a.reportingEnd} is after current contract allocation end date ${contract.reportingEnd}
                             so we will deduct ${recsAllocatedAfterCurrentAllocationEnds} (${energySpentAfterCurrentAllocation.total_energy_upper_MWh}) RECs from previous allocation ${a.recs}`)
