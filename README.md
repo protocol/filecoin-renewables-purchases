@@ -26,4 +26,6 @@ Purchased RECs reflected in this repo:
 | [20220420_SP_FF_transaction_1](https://github.com/redransil/filecoin-renewables-purchases/blob/main/20220420_SP_FF_transaction_1/20220420_SP_FF_transaction_1_step2_orderSupply.csv) | 300,000 MWh |
 | [20220501_ACT_PL_transaction_1](https://github.com/redransil/filecoin-renewables-purchases/blob/main/20220501_ACT_PL_transaction_1/20220501_ACT_PL_transaction_1_step2_orderSupply.csv) | 857,411 MWh |
 | [20220607_SP_FF_transaction_2](https://github.com/redransil/filecoin-renewables-purchases/blob/main/20220607_SP_FF_transaction_2/20220607_SP_FF_transaction_2_step2_orderSupply.csv) | 449,806 MWh |
-| **Total:** | **1,844,859 MWh** |
+| [20220916_SP_FF_transaction_3](https://github.com/protocol/filecoin-renewables-purchases/tree/main/20220916_SP_FF_transaction_3) | 485,476 MWh |
+| [20221024_SouthPole_FF_transaction_1](https://github.com/protocol/filecoin-renewables-purchases/tree/main/20221024_SouthPole_FF_transaction_1) | 298,349 MWh |
+| **Total:** | **2,628,684 MWh** |
