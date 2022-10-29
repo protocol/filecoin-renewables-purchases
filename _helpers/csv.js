@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { create as createClient } from 'ipfs-http-client'
 import Papa from 'papaparse'
 import { globby } from 'globby'
 import moment from 'moment'
@@ -7,6 +8,7 @@ import cat from 'countries-and-timezones'
 import all from 'it-all'
 import HL from './leaflet-headless.cjs'
 import { read as xlsxRead, utils as xlsxUtils, write as xlsxWrite, writeFile as xlsxWriteFile, set_fs as xlsxSetFS } from "xlsx/xlsx.mjs"
+import { delimiter } from 'path'
 xlsxSetFS(fs)
 
 // We'll do logging to fs
@@ -43,13 +45,14 @@ switch (activities) {
     case 'fix-dates':
         filePath = args[1]
         const dateColumns = args[2]
+        const dateFormat = args[3]
         if(dateColumns == null) {
             console.error(`Error! Bad argument provided. Date columns is required parameter.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
         jsonContent = await getCsvAndParseToJson(filePath)
-        const fixedDatesCsv = await fixDates(jsonContent, dateColumns)   // comma separated list of date columns
+        const fixedDatesCsv = await fixDates(jsonContent, dateColumns, dateFormat)   // comma separated list of date columns
 
         // Bakup existing file
         await fs.promises.rename(filePath, `${filePath}.bak-${(new Date()).toISOString()}`)
@@ -427,31 +430,34 @@ switch (activities) {
     case 'create-step-5':
         transactionFolder = args[1]
         attestationFolder = args[2]
-        const networkId = args[3]
-        const tokenizationProtocol = args[4]
-        const tokenType = args[5]
-        const smartContractAddress = args[6]
-        const batchId = args[7]
+        const network = args[3]
+        const networkId = args[4]
+        const tokenizationProtocol = args[5]
+        const tokenType = args[6]
+        const smartContractAddress = args[7]
         const format = args[8]
-        const evidentRedemptionFileName = args[9]
-        const redemptionsSheetName = args[10]
-        const beneficiariesSheetName = args[11]
-        minersLocationsFile = args[12]
-        externalBatchesFile = args[13]
+        const redemptionProcess = args[9]
+        minersLocationsFile = args[10]
+        externalBatchesFile = args[11]
+        const evidentRedemptionFileName = args[12]
+        const redemptionsSheetName = args[13]
+        const beneficiariesSheetName = args[14]
+        const batchId = args[15]
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
 
-        if(transactionFolder == null || attestationFolder == null || networkId == null || tokenizationProtocol == null || tokenType == null || smartContractAddress == null || batchId == null || format == null) {
-            console.error(`Error! Bad arguments provided. Transaction folder, attestation folder, Network Id, Tokenization protocol, Token type, Smart contract address, batch Id, and format are required parameters.`)
+        if(transactionFolder == null || attestationFolder == null || network == null || networkId == null || tokenizationProtocol == null || tokenType == null || smartContractAddress == null || format == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder, attestation folder, Network, Network Id, Tokenization protocol, Token type, Smart contract address, and format are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Create step 5 CSV
-        step5Csv = await createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType,
-            smartContractAddress, Number(batchId), format, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
-            minersLocationsFile, externalBatchesFile)
+        step5Csv = await createStep5(transactionFolder, attestationFolder, network, networkId, tokenizationProtocol, tokenType,
+            smartContractAddress, format, redemptionProcess, minersLocationsFile,
+            externalBatchesFile, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
+            batchId)
         if(step5Csv == null) {
             console.error(`Error! Could not create step 5 CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -583,6 +589,11 @@ switch (activities) {
 await new Promise(resolve => setTimeout(resolve, 1000))
 process.exit()
 
+// Generate random HEX
+function genRandomHex(size) {
+    return [...Array(size)].map(() => Math.floor(Math.random() * 16).toString(16)).join('')
+}
+
 // Grabs CSV file and parse it as JSON
 async function getCsvAndParseToJson(filePath) {
     try {
@@ -616,7 +627,7 @@ async function getCsvAndParseToJson(filePath) {
 }
 
 // Fix wrong dates in provided CSV files for specified columns
-async function fixDates(jsonContent, dateColumns) {
+async function fixDates(jsonContent, dateColumns, dateFormat) {
     let columns = dateColumns.trim().split(",")
     if(!columns.length)
         return new Promise((resolve) => {
@@ -631,11 +642,9 @@ async function fixDates(jsonContent, dateColumns) {
     let line = 1
     for (const item of jsonContent) {
         for (const column of columns) {
-            if(!isValidDate(item[column])) {
-                console.log(`${item[column]} in ${column} at line ${line} is not a valid date`)
-                item[column] = guessValidDate(item[column])
-                console.log(`Date in ${column} at line ${line} is set to ${item[column]}`)
-            }
+            const mdate = moment(item[column], dateFormat)
+            item[column] = mdate.format('YYYY-MM-DD')
+            console.log(`Date in ${column} at line ${line} is set to ${item[column]}`)
         }
         line++
     }
@@ -664,35 +673,6 @@ async function fixDates(jsonContent, dateColumns) {
     return new Promise((resolve) => {
         resolve(result)
     })
-}
-
-function isValidDate(date) {
-    const dateChunks = date.split("-")
-    const year = dateChunks[0]
-    const month = dateChunks[1]
-    const day = dateChunks[2]
-    const dateObj = new Date(date)
-    return (dateObj !== "Invalid Date") && !isNaN(dateObj) &&
-        (dateObj.getFullYear() == year && dateObj.getMonth()+1 == month && dateObj.getDate() == day)
-}
-
-function guessValidDate(date) {
-    const dateChunks = date.split("-")
-    const year = dateChunks[0]
-    const month = dateChunks[1]
-    const day = dateChunks[2]
-    if((month == 4 || month == 6 || month == 9 || month == 11) && day > 30)
-        return `${year}-${month}-30`
-    if(month == 2 && year%4 == 0) {
-        return `${year}-${month}-29`
-    }
-    else if(year%4 !== 0) {
-        return `${year}-${month}-28`
-    }
-    else {
-        console.log(`I can't make the best guess for ${date}`)
-        return date
-    }
 }
 
 // Fix wrongly formatted numbers in provided CSV files for specified columns
@@ -2775,9 +2755,10 @@ function _onlyUnique(value, index, self) {
 }
 
 // Create step 5 CSV
-async function createStep5(transactionFolder, attestationFolder, networkId, tokenizationProtocol, tokenType,
-    smartContractAddress, batchId, format, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
-    minersLocationsFile, externalBatchesFile) {
+async function createStep5(transactionFolder, attestationFolder, network, networkId, tokenizationProtocol, tokenType,
+    smartContractAddress, format, redemptionProcess, minersLocationsFile,
+    externalBatchesFile, evidentRedemptionFileName, redemptionsSheetName, beneficiariesSheetName,
+    batchId) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -2800,14 +2781,18 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
         externalBatches = (await getCsvAndParseToJson(`./${externalBatchesFile}`))
             .map((b) => {return b.batch})
     }
-    
+
     let step2 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
     // Filter only ones already matched against miner IDs
-    step2 = step2.filter((c) => {
-        return c.step3_match_complete == 1
-    })
-    const step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
-    let step5 = []
+    if(redemptionProcess.toLowerCase() == "automatic")
+        step2 = step2.filter((c) => {
+            return c.step3_match_complete == 1
+        })
+
+    const step3 = (redemptionProcess.toLowerCase() == "automatic") ? await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`) : []
+    let step5 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
+    if(step5 == null)
+        step5 = []
     let evidentIndex = 0
     let loadFilePath, saveFilePath, buf, workbook, redemptionWorkSheet, newBeneficiariesWorkSheet
     let syntheticLocations
@@ -2839,7 +2824,7 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
         const contract = step2[contractIndex]
         const contractId = contract.contract_id
         const productType = contract.productType
-        if(productType.toUpperCase() == "IREC") {
+        if(redemptionProcess.toLowerCase() == "automatic" && productType.toUpperCase() == "IREC") {
             // Automatic (1:1)
             const allocations = step3.filter((a) => {return a.contract_id == contractId})
             attestations = allocations.map((a) => {
@@ -2855,6 +2840,7 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                     location = locationObjects[0].region
                 }
                 return {
+                    "network": network,
                     "networkId": networkId,
                     "contractId": contractId,
                     "allocationId": a.allocation_id,
@@ -2865,13 +2851,14 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                     "minerId": a.minerID,
                     "minerLocation": location,
                     "RECs": a.volume_MWh,
-                    "redemptionProcess": "automatic"
+                    "redemptionProcess": redemptionProcess.toLowerCase()
                 }
             })
         }
         else {
             // Multiple minerIds per attestation
             attestations = [{
+                "network": network,
                 "networkId": networkId,
                 "contractId": contractId,
                 "allocationId": null,
@@ -2882,18 +2869,48 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                 "minerId": null,
                 "minerLocation": null,
                 "RECs": null,
-                "redemptionProcess": "manual"
+                "redemptionProcess": redemptionProcess.toLowerCase()
             }]
         }
 
         let skipBatches = 0
-        let batch = 0
+        let batch
+        
+        switch (tokenizationProtocol) {
+            case "ZL 1.0.0":
+                batch = 0
+                batchId = Number(batchId)
+                break
+            case "ZLv1.1.0a":
+                batch = ""
+                break
+            default:
+                console.error(`Unrecognized tokenization protocol ${tokenizationProtocol}.`)
+                return new Promise((resolve) => {
+                    resolve(null)
+                })
+        }
+
         for (let attestationIndex = 0; attestationIndex < attestations.length; attestationIndex++) {
-            // make sure batchId is not in external batches list
-            batch = batchId + step5.length + skipBatches
-            while(externalBatches.indexOf(batch) != -1) {
-                skipBatches++
-                batch = batchId + step5.length + skipBatches
+            switch (tokenizationProtocol) {
+                case "ZL 1.0.0":
+                    // make sure batchId is not in external batches list
+                    batch = batchId + step5.length + skipBatches
+                    while(externalBatches.indexOf(batch) != -1) {
+                        skipBatches++
+                        batch = batchId + step5.length + skipBatches
+                    }
+                    break
+                case "ZLv1.1.0a":
+                    const size = 32
+                    batch = genRandomHex(size)
+                    batch = `0x${batch}`
+                    break
+                default:
+                    console.error(`Unrecognized tokenization protocol ${tokenizationProtocol}.`)
+                    return new Promise((resolve) => {
+                        resolve(null)
+                    })
             }
 
             const attestation = attestations[attestationIndex]
@@ -2906,33 +2923,53 @@ async function createStep5(transactionFolder, attestationFolder, networkId, toke
                     beneficiary = `${attestation.smartContractAddress}-${batch}`
                     redemptionPurpose = `${attestation.tokenizationProtocol}-NWID${attestation.networkId}-${attestation.tokenType}`
                     break
+                case "cid":
+                    const ipfsNodeAddr = '/dns4/sandbox.co2.storage/tcp/5002/https'
+                    const ipfs = await createClient(ipfsNodeAddr)
+                    const beneficiaryData = {
+                        "Description": "Redeemed for the purpose of tokenization",
+                        "Protocol": `${attestation.tokenizationProtocol}`,
+                        "Blockchain": `${attestation.network} - ID ${attestation.networkId}`,
+                        "Address": attestation.smartContractAddress,
+                        "Batch": batch,
+                        "Beneficiary": (redemptionProcess.toLowerCase() == "automatic") ? attestation.minerId : null
+                    }
+                    const beneficiaryDataCid = await ipfs.add(JSON.stringify(beneficiaryData), {
+                        'cidVersion': 0,
+                        'hashAlg': 'sha2-256'
+                    })
+                    beneficiary = `CID:${beneficiaryDataCid.cid.toString()}`
+                    redemptionPurpose = `Zero Labs Tokenization - go to ipfs.io/ipfs/_CID_`
+                    break
                 default:
-                    console.error(`Unrecognized beneficiary format ${format}. Expected values are 'long' or 'short.`)
+                    console.error(`Unrecognized beneficiary format ${format}. Expected values are 'long', 'short', or 'cid'.`)
                     return new Promise((resolve) => {
                         resolve(null)
                     })
             }
 
-            step5.push({
-                attestation_id: `${transactionFolderName}_attestation_${step5.length + 1}`,
-                redemption_process: attestation.redemptionProcess,
-                contract_id: attestation.contractId,
-                allocation_id: attestation.allocationId,
-                smart_contract_address: smartContractAddress,
-                batchID: batch,
-                network: networkId,
-                zl_protocol_version: tokenizationProtocol,
-                minerID: attestation.minerId,
-                beneficiary: beneficiary,
-                beneficiary_country: (attestation.minerLocation != null) ? attestation.minerLocation.split("-")[0] : contract.country,
-                beneficiary_location: attestation.minerLocation,
-                supply_country: contract.country,
-                volume_required: attestation.volumeRequired,
-                start_date: contract.reportingStart,
-                end_date: contract.reportingEnd,
-                redemption_purpose: redemptionPurpose,
-                attestation_folder: attestationFolderName
-            })
+            const attestationId = `${transactionFolderName}_attestation_${step5.length + 1}`
+            if(!step5.filter((s5)=>{return s5.contract_id == attestation.contractId}).length)
+                step5.push({
+                    attestation_id: attestationId,
+                    redemption_process: attestation.redemptionProcess,
+                    contract_id: attestation.contractId,
+                    allocation_id: attestation.allocationId,
+                    smart_contract_address: smartContractAddress,
+                    batchID: batch,
+                    network: networkId,
+                    zl_protocol_version: tokenizationProtocol,
+                    minerID: attestation.minerId,
+                    beneficiary: beneficiary,
+                    beneficiary_country: (attestation.minerLocation != null) ? attestation.minerLocation.split("-")[0] : contract.country,
+                    beneficiary_location: attestation.minerLocation,
+                    supply_country: contract.country,
+                    volume_required: attestation.volumeRequired,
+                    start_date: contract.reportingStart,
+                    end_date: contract.reportingEnd,
+                    redemption_purpose: redemptionPurpose,
+                    attestation_folder: attestationFolderName
+                })
 
             if(evidentRedemptionFileName == null || redemptionsSheetName == null || beneficiariesSheetName == null
                 || minersLocationsFile == null)

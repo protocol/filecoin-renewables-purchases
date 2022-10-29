@@ -24,6 +24,7 @@
     "countries-and-timezones": "^3.3.0",
     "csv-parse": "^5.0.4",
     "globby": "^13.1.1",
+    "ipfs-http-client": "^59.0.0",
     "it-all": "^1.0.6",
     "jsdom": "^19.0.0",
     "json2csv": "^5.0.7",
