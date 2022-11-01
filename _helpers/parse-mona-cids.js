@@ -77,6 +77,8 @@ async function parseMonaCids(){
   console.dir(minersList, { depth: null })
 
   const pathChunks = mona_file.split("/")
-  const path = `${pathChunks.splice(pathChunks.length, 1).join("/")}/mona_priority_miners.json`
-  await fs.promises.writeFile(`${path}`, minersList)
+  pathChunks.splice(pathChunks.length-1, 1)
+  const pathFolder = pathChunks.join("/")
+  const path = `${pathFolder}/mona-miners.json`
+  await fs.promises.writeFile(`${path}`, JSON.stringify(minersList))
 }
