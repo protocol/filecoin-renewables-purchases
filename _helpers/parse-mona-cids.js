@@ -73,6 +73,8 @@ async function parseMonaCids(){
     }
   }
   console.log(`Total CIDs in file: ${totalCids}; Total indexed CIDs: ${totalIndexedCids}; Total matched CIDs: ${totalCidsMatchedWithMinerIds}; Total miners found ${minersList.length}.`)
+
+  minersList = minersList.filter(_onlyUnique)
   console.dir(miners, { depth: null })
   console.dir(minersList, { depth: null })
 
@@ -81,4 +83,8 @@ async function parseMonaCids(){
   const pathFolder = pathChunks.join("/")
   const path = `${pathFolder}/mona-miners.json`
   await fs.promises.writeFile(`${path}`, JSON.stringify(minersList))
+}
+
+function _onlyUnique(value, index, self) {
+  return self.indexOf(value) === index;
 }

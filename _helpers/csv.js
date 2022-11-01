@@ -383,10 +383,9 @@ switch (activities) {
     case 'create-step-3':
         transactionFolder = args[1]
         minersLocationsFile = args[2]
-        minersLocationsFileWithLatLng = args[3]
-        const priorityMinersFile = args[4]
-        const gridMinersSplitFile = args[5]
-        let recsMultFactor = args[6]
+        const priorityMinersFiles = args[3]
+        const gridMinersSplitFile = args[4]
+        let recsMultFactor = args[5]
 
         if(recsMultFactor == undefined)
             recsMultFactor = 1.5
@@ -396,14 +395,14 @@ switch (activities) {
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
 
-        if(transactionFolder == null || minersLocationsFile == null || minersLocationsFileWithLatLng == null || priorityMinersFile == null || gridMinersSplitFile == null) {
-            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, miner locations with latitutde and longitude, priority miners and grid split file paths are required parameters.`)
+        if(transactionFolder == null || minersLocationsFile == null || priorityMinersFiles == null || gridMinersSplitFile == null) {
+            console.error(`Error! Bad arguments provided. Transaction folder, and miners locations, priority miners list and grid split file paths are required parameters.`)
             await new Promise(resolve => setTimeout(resolve, 100))
             process.exit()
         }
 
         // Create step 3 CSV and update step 2 CSV
-        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, gridMinersSplitFile, recsMultFactor)
+        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, priorityMinersFiles, gridMinersSplitFile, recsMultFactor)
         if(createStep3Response == null) {
             console.error(`Error! Could not create step 3 CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -1930,7 +1929,7 @@ async function unquoteStep6NumericFields(attestationFolder) {
 }
 
 // Create step 3 CSV
-async function createStep3(transactionFolder, minersLocationsFile, minersLocationsFileWithLatLng, priorityMinersFile, gridMinersSplitFile, recsMultFactor = 1.5) {
+async function createStep3(transactionFolder, minersLocationsFile, priorityMinersFiles, gridMinersSplitFile, recsMultFactor = 1.5) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -1955,55 +1954,30 @@ async function createStep3(transactionFolder, minersLocationsFile, minersLocatio
         "number", "number"]
 
     let step3 = []
-    let syntheticLocations = []
-    let syntheticLocationsWithLatLng = []
+    let minersLocations = []
     let miners = []
     let previousAllocations = []
     let previousContracts = []
     let startingContracts = [], contracts = [], consumedContracts = []
     let gridMinersSplit = null
     try {
-        let estuaryActiveMiners = (await axios("https://api.estuary.tech/public/miners", {
-            method: 'get'
-        })).data
-//            .filter((m) => {return m.suspended == false})   // suspended category is temporary, they did use the energy to seal and store data so include them
-            .map((m) => {return m.addr})
-
-        const syntheticLocationsFilePath = `./${transactionFolder}/_assets/${minersLocationsFile}`
-        syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
+        const minersLocationsFilePath = `./${transactionFolder}/_assets/${minersLocationsFile}`
+        minersLocations = await fs.promises.readFile(minersLocationsFilePath, {
             encoding:'utf8',
             flag:'r'
         })
-        syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
+        minersLocations = JSON.parse(minersLocations).providerLocations
 
-        let syntheticLocationsMiners = syntheticLocations
-            .filter((m) => {return m.delegate == null}) // try with delegates to see are all estuary miner's having locations
-            .map((m) => {return m.provider})
-        // Remove duplicates
-        syntheticLocationsMiners = syntheticLocationsMiners.filter(_onlyUnique)
-
-        let syntheticLocationsMinersWithDelegates = syntheticLocations
-            .map((m) => {return m.provider})
-        // Remove duplicates
-        syntheticLocationsMinersWithDelegates = syntheticLocationsMinersWithDelegates.filter(_onlyUnique)
-
-        const syntheticLocationsWithLatLngFilePath = `./${transactionFolder}/_assets/${minersLocationsFileWithLatLng}`
-        syntheticLocationsWithLatLng = await fs.promises.readFile(syntheticLocationsWithLatLngFilePath, {
-            encoding:'utf8',
-            flag:'r'
-        })
-        syntheticLocationsWithLatLng = JSON.parse(syntheticLocationsWithLatLng).providerLocations   // when using synthetic-country-state-province-locations-latest.json
-
-        const priorityMinersFilePath = `./${transactionFolder}/_assets/${priorityMinersFile}`
-        const mnrs = await fs.promises.readFile(priorityMinersFilePath, {
-            encoding:'utf8',
-            flag:'r'
-        })
-
-        miners.push(JSON.parse(mnrs))
-        miners.push(estuaryActiveMiners)
-        miners.push(syntheticLocationsMiners)
-        miners.push(syntheticLocationsMinersWithDelegates)
+        const priorityMinersFilesArr = priorityMinersFiles.split(",")
+        for (let priorityMinersFile of priorityMinersFilesArr) {
+            priorityMinersFile = priorityMinersFile.trim()
+            const priorityMinersFilePath = `./${transactionFolder}/_assets/${priorityMinersFile}`
+            const mnrs = await fs.promises.readFile(priorityMinersFilePath, {
+                encoding:'utf8',
+                flag:'r'
+            })
+            miners = miners.concat(JSON.parse(mnrs))
+        }
 
         // Load contracts
         contracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
@@ -2107,11 +2081,11 @@ console.log(contracts.length, minersBatch.length)
             if(region != null) {
                 let regionMiners = gridMinersSplit[region]
                     .map((rm) => {return rm.provider})
-                    minersInRegion = syntheticLocationsWithLatLng
+                    minersInRegion = minersLocations
                         .filter((slm) => {return regionMiners.indexOf(slm.provider) > -1})
             }
             else {
-                minersInRegion = syntheticLocationsWithLatLng
+                minersInRegion = minersLocations
                     .filter((m) => {return m.country == country})
             }
             console.log(`${minersInRegion.length} miners found in region ${(region != null) ? region : country}`)
@@ -2133,7 +2107,7 @@ console.log(contracts.length, minersBatch.length)
                 const circle = L.circle(centerLatLng, {radius: radius}).addTo(map)
 
                 // Filter miners in radius
-                let minersInRadius = syntheticLocationsWithLatLng
+                let minersInRadius = minersLocations
                     .filter((m) => {
                         const lat = m.lat
                         const lng = m.long

@@ -8,6 +8,7 @@
     "csv": "env-cmd node _helpers/csv.js",
     "parse-mona-cids": "env-cmd node _helpers/parse-mona-cids.js",
     "parse-synthetic-locations": "env-cmd node _helpers/parse-synthetic-locations.js",
+    "parse-estuary": "env-cmd node _helpers/parse-estuary.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

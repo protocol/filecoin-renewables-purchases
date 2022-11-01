@@ -1,5 +1,4 @@
 import fs from 'fs'
-import axios from 'axios'
 
 // We'll do logging to fs
 let access = fs.createWriteStream(`./logs/parse-synthetic-locations-${(new Date()).toISOString()}.log`)
