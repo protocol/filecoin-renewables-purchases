@@ -25,7 +25,6 @@ let attestationFolderChunks, attestationFolderName
 let transactionFolderChunks, transactionFolderName
 let assetsFolder, assetsFolderChunks, assetsFolderName
 let minersLocationsFile
-let minersLocationsFileWithLatLng
 let purchaseOrderFolderChunks, purchaseOrderFolderName
 let nercGeoJsonFile
 let nercRegionsMappingFile
@@ -386,11 +385,17 @@ switch (activities) {
         const priorityMinersFiles = args[3]
         const gridMinersSplitFile = args[4]
         let recsMultFactor = args[5]
+        let contractConsumption = args[6]
 
         if(recsMultFactor == undefined)
             recsMultFactor = 1.5
         else
             recsMultFactor = parseFloat(recsMultFactor)
+
+        if(contractConsumption == undefined)
+            contractConsumption = 1
+        else
+            contractConsumption = parseFloat(contractConsumption)
 
         transactionFolderChunks = transactionFolder.split("/")
         transactionFolderName = transactionFolderChunks[transactionFolderChunks.length-1]
@@ -402,7 +407,7 @@ switch (activities) {
         }
 
         // Create step 3 CSV and update step 2 CSV
-        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, priorityMinersFiles, gridMinersSplitFile, recsMultFactor)
+        const createStep3Response = await createStep3(transactionFolder, minersLocationsFile, priorityMinersFiles, gridMinersSplitFile, recsMultFactor, contractConsumption)
         if(createStep3Response == null) {
             console.error(`Error! Could not create step 3 CSV.`)
             await new Promise(resolve => setTimeout(resolve, 100))
@@ -1929,7 +1934,7 @@ async function unquoteStep6NumericFields(attestationFolder) {
 }
 
 // Create step 3 CSV
-async function createStep3(transactionFolder, minersLocationsFile, priorityMinersFiles, gridMinersSplitFile, recsMultFactor = 1.5) {
+async function createStep3(transactionFolder, minersLocationsFile, priorityMinersFiles, gridMinersSplitFile, recsMultFactor = 1.5, contractConsumption = 1) {
     const transactionFolderPathChunks = transactionFolder.split("/")
     const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
 
@@ -1981,26 +1986,36 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
 
         // Load contracts
         contracts = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step2FileNameSuffix}`)
-        for (const c of contracts) {
+
+        // Filter future contracts and ones already fully consumed / matched against miner IDs
+        contracts = contracts.filter((c) => {
             let recsAvailable = (typeof c.volume_MWh != "number")
                 ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
             c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
-        }
 
-        // Filter future contracts and ones already matched against miner IDs
-        contracts = contracts.filter((c) => {
             return moment(c.reportingEnd, "YYYY-MM-DD").isSameOrBefore(moment()) && c.step3_match_complete == 0
         })
 
         // Load previous allocations (step3 CSV if it exists)
         try {
             step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+            
+            // Deduct previously allocated volumes
+            for (const allocation of step3) {
+                const contractIndex = contracts.map((c) => {return c.contract_id}).indexOf(allocation.contract_id)
+                contracts[contractIndex]["volume_MWh"] -= allocation.volume_MWh
+            }
         }
         catch (err) {
             step3 = []
             console.log(`Step 3 CSV (allocations file) for ${transactionFolder} is not created yet`)
         }
 
+        // Set max consumtion from contracts
+        for (const contract of contracts) {
+            contract.volume_MWh_leftover = contract.volume_MWh * (1 - contractConsumption)
+        }
+        
         // Load grid miners split file
         const gridMinersSplitPath = `./${transactionFolder}/_assets/${gridMinersSplitFile}`
         gridMinersSplit = await fs.promises.readFile(gridMinersSplitPath, {
@@ -2036,28 +2051,20 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
     }
 
     let minersEnergyData = {}
-    let minersBatchIndex = 0
-    let minersBatch = miners[minersBatchIndex]
 
-console.log(contracts.length, minersBatch.length)
+    console.log(`contracts.length: ${contracts.length}, miners.length: ${miners.length},\n miners:`)
+    console.dir(miners, {depth: null})
 
-    while(contracts.length && minersBatch && minersBatch.length) {
-        console.log(`minersBatchIndex ${minersBatchIndex}, minersBatch.length: ${minersBatch.length},\n minersBatch:`)
-        console.dir(minersBatch, {depth: null})
-
-        let step = await _consumeContracts(transactionFolderName, minersBatch, minersEnergyData,
-            previousAllocations, previousContracts, consumedContracts, contracts, step3,
-            gridMinersSplit, recsMultFactor)
-        minersEnergyData = step.minersEnergyData
-        previousContracts = step.previousContracts
-        previousAllocations = step.previousAllocations
-        consumedContracts = step.consumedContracts
-        contracts = step.contracts
-        step3 = step.step3
-        minersBatchIndex++
-        minersBatch = miners[minersBatchIndex]
-    }
-
+    let step = await _consumeContracts(transactionFolderName, miners, minersEnergyData,
+        previousAllocations, previousContracts, consumedContracts, contracts, step3,
+        gridMinersSplit, recsMultFactor, contractConsumption)
+/*     minersEnergyData = step.minersEnergyData
+    previousContracts = step.previousContracts
+    previousAllocations = step.previousAllocations
+    consumedContracts = step.consumedContracts
+    contracts = step.contracts
+    step3 = step.step3
+ */
     // If we have unmatched contracts remained
     // search for miners in region (start with radius 250km)
     if(contracts.length) {
@@ -2102,7 +2109,7 @@ console.log(contracts.length, minersBatch.length)
             const centerLatLng = L.latLng(minersCenter.lat, minersCenter.lng)
 
             console.log(`Contract ${contract.contract_id} volume left ${contracts.volume_MWh}`)
-            while (contract.volume_MWh > 0) {
+            while (contract.volume_MWh >= contract.volume_MWh_leftover) {
                 radius += 250000    // increase miners search radius for 250km
                 const circle = L.circle(centerLatLng, {radius: radius}).addTo(map)
 
@@ -2143,7 +2150,7 @@ console.log(contracts.length, minersBatch.length)
                 if(c.volume_MWh == 0)
                     consumedContracts.push(c.contract_id)
 
-                return c.volume_MWh > 0
+                return c.volume_MWh > c.volume_MWh_leftover
             })
             console.dir(contracts.map((c) => {return {
                 "contract_id": c.contract_id,
@@ -2209,8 +2216,8 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
         let recsAvailable = (typeof contract.volume_MWh != "number")
             ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
         contract.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
-        if(recsAvailable <= 0) {
-            console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh})`)
+        if(recsAvailable <= contract.volume_MWh_leftover) {
+            console.log(`Contract ${contract.contract_id} has no more available RECs (available: ${recsAvailable}, total: ${contract.volume_MWh}, leftover: ${contract.volume_MWh_leftover})`)
             continue
         }
 
@@ -2237,10 +2244,10 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
             recsAvailable = (typeof contract.volume_MWh != "number")
                 ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
 
-            console.log(`Trying to allocate from contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) to miner ${miner}`)
+            console.log(`Trying to allocate from contract ${contract.contract_id} (available: ${recsAvailable}, total: ${contract.volume_MWh}, leftover: ${contract.volume_MWh_leftover}) to miner ${miner}`)
 
-            if(recsAvailable <= 0) {
-                console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh}) for miner ${miner}`)
+            if(recsAvailable <= contract.volume_MWh_leftover) {
+                console.log(`Contract ${contract.contract_id} has no more available RECs (available: ${recsAvailable}, total: ${contract.volume_MWh}, leftover: ${contract.volume_MWh_leftover}) for miner ${miner}`)
                 break
             }
 
@@ -2332,8 +2339,8 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                 // or we have no more RECs available with this contract, then skip it
                 if(recsNeeded <= recsAllocated)
                     continue
-                const newlyAllocated = (recsAvailable >= (recsNeeded - recsAllocated))
-                    ? (recsNeeded - recsAllocated) : recsAvailable
+                const newlyAllocated = (recsAvailable - contract.volume_MWh_leftover >= (recsNeeded - recsAllocated))
+                    ? (recsNeeded - recsAllocated) : recsAvailable - contract.volume_MWh_leftover
                 contract.volume_MWh = recsAvailable - newlyAllocated
 
                 if(step3 == null)
@@ -2375,7 +2382,7 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
         if(c.volume_MWh == 0)
             consumedContracts.push(c.contract_id)
 
-        return c.volume_MWh > 0
+        return c.volume_MWh > c.volume_MWh_leftover
     })
     console.dir(contracts.map((c) => {return {
         "contract_id": c.contract_id,
@@ -2404,8 +2411,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
     let recsAvailable = (typeof contract.volume_MWh != "number")
         ? Number((contract.volume_MWh.replace(",", ""))) : contract.volume_MWh
     contract.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
-    if(recsAvailable <= 0) {
-        console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh})`)
+    if(recsAvailable <= contract.volume_MWh_leftover) {
+        console.log(`Contract ${contract.contract_id} has no more available RECs (available: ${recsAvailable}, total: ${contract.volume_MWh}, leftover: ${contract.volume_MWh_leftover})`)
         return {
             "contract": contract,
             "minersEnergyData": minersEnergyData,
@@ -2427,8 +2434,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
 
         console.log(`Trying to allocate from contract ${contract.contract_id} (${recsAvailable} - ${contract.volume_MWh}) to miner ${miner}`)
 
-        if(recsAvailable <= 0) {
-            console.log(`Contract ${contract.contract_id} has no more available RECs (${recsAvailable} - ${contract.volume_MWh}) for miner ${miner}`)
+        if(recsAvailable <= contract.volume_MWh_leftover) {
+            console.log(`Contract ${contract.contract_id} has no more available RECs (available: ${recsAvailable}, total: ${contract.volume_MWh}, leftover: ${contract.volume_MWh_leftover}) for miner ${miner}`)
             break
         }
 
@@ -2437,8 +2444,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
         const medIndex = `${miner}-${contract.reportingStart}-${contract.reportingEnd}`
         console.log(`Get energy data for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
         if(minersEnergyData[medIndex] == null)
-//                    minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner)
-            minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), moment(contract.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"), miner)
+//          minersEnergyData[medIndex] = await _totalEnergy(contract.reportingStart, contract.reportingEnd, miner)
+        minersEnergyData[medIndex] = await _totalEnergyFromModel(moment(contract.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), moment(contract.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"), miner)
         console.log(`Got cumulative energy total (upper) ${minersEnergyData[medIndex].total_energy_upper_MWh} for ${miner} (${contract.reportingStart}, ${contract.reportingEnd})`)
         
         let palloc = previousAllocations
@@ -2514,8 +2521,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
             // or we have no more RECs available with this contract, then skip it
             if(recsNeeded <= recsAllocated)
                 continue
-            const newlyAllocated = (recsAvailable >= (recsNeeded - recsAllocated))
-                ? (recsNeeded - recsAllocated) : recsAvailable
+            const newlyAllocated = (recsAvailable - contract.volume_MWh_leftover >= (recsNeeded - recsAllocated))
+                ? (recsNeeded - recsAllocated) : recsAvailable - contract.volume_MWh_leftover
             contract.volume_MWh = recsAvailable - newlyAllocated
 
             const allocation = {
