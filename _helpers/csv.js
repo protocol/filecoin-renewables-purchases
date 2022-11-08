@@ -2011,11 +2011,11 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
         // Load previous allocations (step3 CSV if it exists)
         try {
             step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
-            
             // Deduct previously allocated volumes
             for (const allocation of step3) {
                 const contractIndex = contracts.map((c) => {return c.contract_id}).indexOf(allocation.contract_id)
-                contracts[contractIndex]["volume_MWh"] -= allocation.volume_MWh
+                if(contractIndex > -1)
+                    contracts[contractIndex]["volume_MWh"] -= allocation.volume_MWh
             }
         }
         catch (err) {
@@ -2057,7 +2057,7 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
             previousAllocations = previousAllocations.concat(alloc)
         let contr = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
         if(contr != null) {
-            contr = contr.filter((c) => {return c.step3_match_complete == 1})
+//            contr = contr.filter((c) => {return c.step3_match_complete == 1})
             previousContracts = previousContracts.concat(contr)
         }
     }
