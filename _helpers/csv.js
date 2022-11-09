@@ -2813,7 +2813,8 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
         const contract = step2[contractIndex]
         const contractId = contract.contract_id
         const productType = contract.productType
-        if(redemptionProcess.toLowerCase() == "automatic" && productType.toUpperCase() == "IREC") {
+//        if(redemptionProcess.toLowerCase() == "automatic" && productType.toUpperCase() == "IREC") {
+        if(redemptionProcess.toLowerCase() == "automatic") {
             // Automatic (1:1)
             const allocations = step3.filter((a) => {return a.contract_id == contractId})
             attestations = allocations.map((a) => {
@@ -2881,6 +2882,15 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
         }
 
         for (let attestationIndex = 0; attestationIndex < attestations.length; attestationIndex++) {
+            const attestation = attestations[attestationIndex]
+
+            if((redemptionProcess.toLowerCase() == "automatic"
+                && step5.filter((s5)=>{return s5.allocation_id == attestation.allocationId}).length)
+                    || (redemptionProcess.toLowerCase() != "automatic"
+                        && step5.filter((s5)=>{return s5.contract_id == attestation.contractId}).length)) {
+                continue
+            }
+
             switch (tokenizationProtocol) {
                 case "ZL 1.0.0":
                     // make sure batchId is not in external batches list
@@ -2902,7 +2912,6 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
                     })
             }
 
-            const attestation = attestations[attestationIndex]
             switch (format) {
                 case "long":
                     beneficiary = `Blockchain Network ID: ${attestation.networkId} - Tokenization Protocol: ${attestation.tokenizationProtocol} - Smart Contract Address: ${attestation.smartContractAddress} - Batch ID: ${batch} ${(attestation.minerId != null) ? '- Filecoin minerID ' + attestation.minerId : ''}`
@@ -2938,27 +2947,37 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
             }
 
             const attestationId = `${transactionFolderName}_attestation_${step5.length + 1}`
-            if(!step5.filter((s5)=>{return s5.contract_id == attestation.contractId}).length)
-                step5.push({
-                    attestation_id: attestationId,
-                    redemption_process: attestation.redemptionProcess,
-                    contract_id: attestation.contractId,
-                    allocation_id: attestation.allocationId,
-                    smart_contract_address: smartContractAddress,
-                    batchID: batch,
-                    network: networkId,
-                    zl_protocol_version: tokenizationProtocol,
-                    minerID: attestation.minerId,
-                    beneficiary: beneficiary,
-                    beneficiary_country: (attestation.minerLocation != null) ? attestation.minerLocation.split("-")[0] : contract.country,
-                    beneficiary_location: attestation.minerLocation,
-                    supply_country: contract.country,
-                    volume_required: attestation.volumeRequired,
-                    start_date: contract.reportingStart,
-                    end_date: contract.reportingEnd,
-                    redemption_purpose: redemptionPurpose,
-                    attestation_folder: attestationFolderName
-                })
+            const attestationRecord = {
+                attestation_id: attestationId,
+                redemption_process: attestation.redemptionProcess,
+                contract_id: attestation.contractId,
+                allocation_id: attestation.allocationId,
+                smart_contract_address: smartContractAddress,
+                batchID: batch,
+                network: networkId,
+                zl_protocol_version: tokenizationProtocol,
+                minerID: attestation.minerId,
+                beneficiary: beneficiary,
+                beneficiary_country: (attestation.minerLocation != null) ? attestation.minerLocation.split("-")[0] : contract.country,
+                beneficiary_location: attestation.minerLocation,
+                supply_country: contract.country,
+                volume_required: attestation.volumeRequired,
+                start_date: contract.reportingStart,
+                end_date: contract.reportingEnd,
+                redemption_purpose: redemptionPurpose,
+                attestation_folder: attestationFolderName
+            }
+            if(redemptionProcess.toLowerCase() == "automatic" && !step5.filter((s5)=>{return s5.allocation_id == attestation.allocationId}).length) {
+                step5.push(attestationRecord)
+                console.log(`Attestation ${attestationId} is created (${beneficiary}).`)
+            }
+            else if(!step5.filter((s5)=>{return s5.contract_id == attestation.contractId}).length){
+                step5.push(attestationRecord)
+                console.log(`Attestation ${attestationId} is created (${beneficiary}).`)
+            }
+            else {
+                console.log(`Attestation for ${attestation.contractId}${(attestation.allocationId) ? ', ' + attestation.allocationId : ''} already exists.`)
+            }
 
             if(evidentRedemptionFileName == null || redemptionsSheetName == null || beneficiariesSheetName == null
                 || minersLocationsFile == null)
