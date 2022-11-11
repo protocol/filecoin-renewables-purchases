@@ -2806,6 +2806,20 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
             flag:'r'
         })
         syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
+
+        for (const att of step5) {
+                // Add item to evident redemptions work sheet
+                redemptionWorkSheet = xlsxUtils.sheet_add_aoa(redemptionWorkSheet, [
+                    [att.beneficiary, att.beneficiary_country, att.beneficiary_location, , att.volume_required, att.start_date, att.end_date, att.redemption_purpose]
+                ], { origin: `B${evidentIndex+3}` })
+
+                // Add item to evident new beneficiaries work sheet
+                newBeneficiariesWorkSheet = xlsxUtils.sheet_add_aoa(newBeneficiariesWorkSheet, [
+                    [att.beneficiary, att.beneficiary_country, att.beneficiary_location]
+                ], { origin: `A${evidentIndex+4}` })
+
+                evidentIndex++
+        }
     }
 
     for (let contractIndex = 0; contractIndex < step2.length; contractIndex++) {
@@ -2901,7 +2915,7 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
                     }
                     break
                 case "ZLv1.1.0a":
-                    const size = 32
+                    const size = 64
                     batch = genRandomHex(size)
                     batch = `0x${batch}`
                     break
