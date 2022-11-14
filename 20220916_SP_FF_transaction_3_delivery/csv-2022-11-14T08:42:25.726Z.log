@@ -1,0 +1,27 @@
+Error! Can't open 20220916_SP_FF_transaction_3/20220916_SP_FF_transaction_3_step5_redemption_information.csv. Error: ENOENT: no such file or directory, open '20220916_SP_FF_transaction_3/20220916_SP_FF_transaction_3_step5_redemption_information.csv'
+(node:3024) ExperimentalWarning: The Fetch API is an experimental feature. This feature could change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+Attestation 20220916_SP_FF_transaction_3_attestation_1 is created (CID:Qmc92RehNG8jAYJErUYrQovCMHkT6PkQi1wE4XYgVC8vVw).
+Attestation 20220916_SP_FF_transaction_3_attestation_2 is created (CID:QmVrnpsKsmRyPYfGMRHiDhSs6tui5xhRhfVRSfBBtXvohn).
+Attestation 20220916_SP_FF_transaction_3_attestation_3 is created (CID:QmWevmjJnawxBFTMuy3hNRxr5jPy5ic7wVomfYoSNRi9Xy).
+Attestation 20220916_SP_FF_transaction_3_attestation_4 is created (CID:QmUkDBRbLXCRBpgG1Jc3FUMQJnQErsGSGJgPaJL2Hvn4TM).
+Attestation 20220916_SP_FF_transaction_3_attestation_5 is created (CID:QmVWATfk5HDd7L3BtTmprxmEnYTs2eoYikr91dArTastsy).
+Attestation 20220916_SP_FF_transaction_3_attestation_6 is created (CID:QmXQ8B4Er49NuxWDrxjoPdFXkNy5KGo1BAojdvKcGJPZ5Z).
+Attestation 20220916_SP_FF_transaction_3_attestation_7 is created (CID:QmW9dUWhbVkC1SW9UtB7LrtqBgoGbR6JNkotJLS3Vx78br).
+Attestation 20220916_SP_FF_transaction_3_attestation_8 is created (CID:QmUvAf2fyjsUnGNVbaRR8FE91hx2jrcFSakxXuwVu1Ngv7).
+Attestation 20220916_SP_FF_transaction_3_attestation_9 is created (CID:QmUdLyF2mjHG798C2CczmfqAT93sgGo9kR5d1eUgWqvR1v).
+Attestation 20220916_SP_FF_transaction_3_attestation_10 is created (CID:QmVe1cKqJ9Zu6zWVHcREAbnoKQkwXxEqWLjfy6EKm8Bzhp).
+Attestation 20220916_SP_FF_transaction_3_attestation_11 is created (CID:QmNw5yA9mR94hL2D1AdGtFJnFrYHzp88q98BjsVVfjvnxx).
+Attestation 20220916_SP_FF_transaction_3_attestation_12 is created (CID:Qmbgx5JUnXSJmuBmy16YGZiPeHWS6HGM8xFLV1THcoDWRP).
+Attestation 20220916_SP_FF_transaction_3_attestation_13 is created (CID:QmWbdpRmtW2zprJsVrbwgUodATzssfkeMeaN7tfHq4C6Pc).
+Attestation 20220916_SP_FF_transaction_3_attestation_14 is created (CID:QmWArbSk5vu63y164n2wT2NUey4iJd9U2EJ6zSnUDEDYiu).
+Attestation 20220916_SP_FF_transaction_3_attestation_15 is created (CID:QmZJfRcxFQyzcFxuGe4MXJ4zu6VUJMyNVDnXoPQgweVxf2).
+Attestation 20220916_SP_FF_transaction_3_attestation_16 is created (CID:QmYonerSstoNz82mgVLuVVMNdWWFyyYLS3MJHXJSYQaD3M).
+Attestation 20220916_SP_FF_transaction_3_attestation_17 is created (CID:QmVXbQ75Fzt1bkTgMibya8ZngbQM9Ue9VzHmh5oYBDf3dp).
+[Error: ENOENT: no such file or directory, rename '20220916_SP_FF_transaction_3/20220916_SP_FF_transaction_3_step5_redemption_information.csv' -> '20220916_SP_FF_transaction_3/20220916_SP_FF_transaction_3_step5_redemption_information.csv.bak-2022-11-14T08:42:37.840Z'] {
+  errno: [33m-2[39m,
+  code: [32m'ENOENT'[39m,
+  syscall: [32m'rename'[39m,
+  path: [32m'20220916_SP_FF_transaction_3/20220916_SP_FF_transaction_3_step5_redemption_information.csv'[39m,
+  dest: [32m'20220916_SP_FF_transaction_3/20220916_SP_FF_transaction_3_step5_redemption_information.csv.bak-2022-11-14T08:42:37.840Z'[39m
+}
