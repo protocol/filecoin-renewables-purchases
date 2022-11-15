@@ -2391,12 +2391,12 @@ await new Promise(resolve => setTimeout(resolve, 20000))
     }
 
     // Remove contract if we search up to a max radius or matched up to a desired leftover
-    if((c.volume_MWh <= c.volume_MWh_leftover) || (radius >= (maxRaduis * 1000)))
+    if((contract.volume_MWh <= contract.volume_MWh_leftover) || (radius >= (maxRaduis * 1000)))
         contracts.splice(0, 1)
 
     // Mark all fully consumed contracts
-    if(c.volume_MWh == 0)
-        consumedContracts.push(c.contract_id)
+    if(contract.volume_MWh == 0)
+        consumedContracts.push(contract.contract_id)
 
     console.log(`Remaining contracts: ${contracts.length}`)
 
