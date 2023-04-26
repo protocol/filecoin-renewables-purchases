@@ -157,28 +157,31 @@ async function test_step_3(folder){
 // For each transaction, make sure the total volume for step5 equals the contract volume
 // For automatic redemptions, make sure volume in step5 matches volume in step3
 // For each smart contract, make sure batch numbers are sequential (no repeats or gaps)
-async function test_step_5(){
+// pass the path to filecoin-renewables-purchases
+async function test_step_5(path){
 
   // Look for all the step5 files we can find
   step5_filenames = []
   step5_to_folder = {}
   folder_to_step5 = {}
-  const transaction_array = parse(fs.readFileSync('all_transactions.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  const transaction_array = parse(fs.readFileSync(path+'/all_transactions.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  // const transaction_array = parse(fs.readFileSync([path+'all_transactions.csv'], {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   var all_allocations = []
   console.log('')
   console.log('---------')
   console.log('Searching for step5 files')
   transaction_array.forEach(function(transaction, idx){
     folder_to_step5[transaction.transaction_folder] = []
+    // newData = parse(fs.readFileSync(path+'/'+transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_manual.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
     try{
-      newData = parse(fs.readFileSync(transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_manual.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      newData = parse(fs.readFileSync(path+'/'+transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_manual.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
       console.log(`   ...Found ${transaction.transaction_folder+'_step5_redemption_information_manual.csv'}`)
       step5_filenames.push(transaction.transaction_folder+'_step5_redemption_information_manual.csv')
       step5_to_folder[transaction.transaction_folder+'_step5_redemption_information_manual.csv'] = transaction.transaction_folder
       folder_to_step5[transaction.transaction_folder].push(transaction.transaction_folder+'_step5_redemption_information_manual.csv')
       all_allocations = all_allocations.concat(newData)}catch{}
     try{
-      newData = parse(fs.readFileSync(transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_automatic.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      newData = parse(fs.readFileSync(path+'/'+transaction.transaction_folder+'/'+transaction.transaction_folder+'_step5_redemption_information_automatic.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
       console.log(`   ...Found ${transaction.transaction_folder+'_step5_redemption_information_automatic.csv'}`)
       step5_filenames.push(transaction.transaction_folder+'_step5_redemption_information_automatic.csv')
       folder_to_step5[transaction.transaction_folder].push(transaction.transaction_folder+'_step5_redemption_information_automatic.csv')
@@ -199,8 +202,10 @@ async function test_step_5(){
 
     // Load data for the step5 file(s)
     step5_filenames_this_folder = folder_to_step5[folder]
+    // console.log()
+    // console.log(folder_to_step5)
     step5_data = step5_filenames_this_folder.reduce((prev, elem)=>{
-      newData = parse(fs.readFileSync(folder+'/'+elem, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      newData = parse(fs.readFileSync(path+'/'+folder+'/'+elem, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
       return prev.concat(newData)
     },[])
 
@@ -213,7 +218,7 @@ async function test_step_5(){
 
           // Load data for the step2 file
           step2_file = folder+'_step2_orderSupply.csv'
-          step2_data = parse(fs.readFileSync(folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+          step2_data = parse(fs.readFileSync(path+'/'+folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
 
           // For every contract, see whether the volume matches
           step2_data.forEach(function(contract, contractidx){
@@ -230,7 +235,7 @@ async function test_step_5(){
         }
       }
     }
-    if(folder_contracts_fully_allocated){console.log(`   Compared step 2 and 5: all ${folder} contracts match allocated volumes!`)}
+    if(folder_contracts_fully_allocated && (step5_filenames_this_folder.length > 0)){console.log(`   Compared step 2 and 5: all ${folder} contracts match allocated volumes!`)}
   })
 
   // For step5 files with 'automatic' in the filename, ensure they match to a step3 allocation
@@ -242,8 +247,8 @@ async function test_step_5(){
       foldername = filename.replace('_step5_redemption_information_automatic.csv', '')
       console.log('')
       console.log(filename)
-      step5_data = parse(fs.readFileSync(foldername+'/'+filename, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
-      step3_data = parse(fs.readFileSync(foldername+'/'+foldername+'_step3_match.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      step5_data = parse(fs.readFileSync(path+'/'+foldername+'/'+filename, {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
+      step3_data = parse(fs.readFileSync(path+'/'+foldername+'/'+foldername+'_step3_match.csv', {encoding:'utf8', flag:'r'}), {columns: true, cast: false});
       if(!(step3_data.length >= step5_data.length)){console.log(`   > Warning: step 5 has ${step5_data.length} allocations and step 3 has ${step3_data.length}. Step 5 should not have more than step3.`)}
       if(!(Object.keys(step5_data[0]).includes('allocation_id'))){console.log(`   > No allocation_id key (old step5 format?), cannot run check.`)}else{
         step5_corresponds_to_step3 = true
