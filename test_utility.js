@@ -153,6 +153,88 @@ async function test_step_3(folder){
 
 }
 
+
+async function compare_order_to_delivery(path, transaction_folder, verbosity){
+
+  console.log(' ')
+  console.log('Examining order and delivery for '+transaction_folder)
+
+  // Load order data
+  step2_file=transaction_folder+'_step2_orderSupply.csv',
+  step2_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  ordered_Volume = step2_data.reduce((prev, elem) => prev+Number(elem.volume_MWh), 0);
+  console.log('  Ordered ' + ordered_Volume + ' MWh')
+
+  // Load delivered data
+  step6_data = await load_step6_data(path, transaction_folder)
+  delivered_Volume = step6_data.reduce((prev, elem) => {
+    return prev+(Number(elem.volume_Wh)/1e6)
+  }, 0);
+  console.log('  Delivered ' + delivered_Volume + ' MWh ('+(Math.round(delivered_Volume/ordered_Volume*100))+'%)')
+
+  // Compare order to delivery
+  // verbose flag -> output itemized list of orders that don't match
+  // load_step_2
+    //Load step 2 info
+ 
+  // Print amount ordered
+  // Print amount delivered
+  // Go down step 2 and compare to step 6
+    // compare_order_to_delivery_line
+      // Calculate score up to 6 by comparing fields other than volume:
+      // step 2: productType, energySources, reportingStart, reportingEnd, country, region, volume_MWh
+      // step 6: reportingStart, reportingEnd, country, region, volume_Wh, productType, energySource
+    // If score is perfect 6
+      // If volume is equal, remove both from queue
+      // If volumes are not equal, remove smaller and subtract volume from larger
+    // If verbose, print left over volumes
+    // Print undelivered amount from order
+    // Print surplus delivery
+
+}
+
+// For a given transaction, load all of the delivery data
+async function load_step6_data(path, transaction_folder){
+  
+  // Load step5 information, which points us to the delivery folder(s)
+  step5_file=transaction_folder+'_step5_redemption_information.csv'
+  try{
+    var step5_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step5_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  } catch{
+    console.log('  No file '+step5_file)
+    return []
+  }
+
+  delivery_folders = step5_data.reduce((prev, elem) => {
+    if (!(prev.includes(elem.attestation_folder))){
+      return prev.concat(elem.attestation_folder)
+    } else {
+      return prev
+    }
+  }, []);
+
+  if (delivery_folders.length > 1){console.log('  > Multiple delivery folders not tested.')}
+
+  toReturn = delivery_folders.reduce((prev, elem) => {
+    step6_file=elem+'_step6_generationRecords.csv'
+    try{
+      var new_step6 = parse(fs.readFileSync(path+'/'+elem+'/'+step6_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+      return prev.concat(new_step6)
+    }catch{
+      console.log('  No delivered volume '+step6_file)
+      return prev
+    }
+    
+  }, []);
+
+  // This should be an array of all delivered volumes for this order, even if they are in multiple folders
+  return toReturn
+
+}
+
+
+
+
 // Test all step5 files
 // For each transaction, make sure the total volume for step5 equals the contract volume
 // For automatic redemptions, make sure volume in step5 matches volume in step3
@@ -316,7 +398,7 @@ async function test_step_5(path){
 
 }
 
-module.exports = {test_step_7, test_step_3, test_step_5}
+module.exports = {test_step_7, test_step_3, test_step_5, compare_order_to_delivery}
 
 // test_step_7('20210831_delivery', '20210831_delivery_step7_certificate_to_contract.csv')
 //test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')
