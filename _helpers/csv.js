@@ -611,14 +611,14 @@ switch (activities) {
 
         try {
             // Bakup existing files
-            await fs.promises.rename(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}`, `_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}.bak-${(new Date()).toISOString()}`)
+            await fs.promises.rename(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}.csv`, `_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}.csv.bak-${(new Date()).toISOString()}`)
         }
         catch (error) {
             console.log(error)
         }
 
         // Create new files
-        await fs.promises.writeFile(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}`, remainingsCsv)
+        await fs.promises.writeFile(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}.csv`, remainingsCsv)
 
         break
     default:
