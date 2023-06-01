@@ -598,6 +598,29 @@ switch (activities) {
         await fs.promises.writeFile(`${assetsFolder}/${gridRegionsFileName}.json`, gridRegions)
 
         break
+    case 'calculate-contracts-remainings':
+        // Create CSV file with calculated all remainings per contract
+        const calculateContractsRemainingsResponse = await calculateContractsRemainings()
+        if(calculateContractsRemainingsResponse == null) {
+            console.error(`Error! Could not create CSV file containing all remainings per contract.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        const remainingsCsv = calculateContractsRemainingsResponse.remainings
+
+        try {
+            // Bakup existing files
+            await fs.promises.rename(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}`, `_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)
+        }
+
+        // Create new files
+        await fs.promises.writeFile(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}`, remainingsCsv)
+
+        break
     default:
         console.error(`Error! Bad argument provided. ${activities} are not supported.`)
 }
@@ -3532,4 +3555,87 @@ function _listQuarters(year, quarter) {
     }
 
     return result
+}
+
+// Calculate contracts remainings
+async function calculateContractsRemainings() {
+    const contractsRemainingsHeader = ['"transaction"', '"contract_id"', '"reportingStart"', '"reportingEnd"', '"country"', '"region"', '"total_MWh"', '"allocated_MWh"', '"remaining_MWh"']
+    const contractsRemainingsColumnTypes = ["string", "string", "string", "string", "string", "string", "number", "number", "number"]
+
+    let remainings = []
+    const transactionFolders = fs.readdirSync("./").filter((file) => {
+        return file.indexOf("_transaction_") > -1
+    })
+
+    for await (const transactionFol of transactionFolders) {
+        const transactionFolPathChunks = transactionFol.split("/")
+        const transactionFolName = transactionFolPathChunks[transactionFolPathChunks.length-1]
+        try {
+            // Load transaction contracts
+            let contracts = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
+            contracts = contracts.filter((c) => {
+                if(c.volume_MWh == undefined)
+                    return false
+                let recsAvailable = (typeof c.volume_MWh != "number")
+                    ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+                c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
+                c.total_MWh = recsAvailable
+                return true
+            })
+    
+            let allocations = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step3FileNameSuffix}`)
+            allocations = allocations.filter((a) => {
+                if(a.volume_MWh == undefined)
+                    return false
+                let recsAllocated = (typeof a.volume_MWh != "number")
+                    ? Number((a.volume_MWh.replace(",", ""))) : a.volume_MWh
+                a.volume_MWh = recsAllocated         // Make sure we have a number here!
+                return true
+            })
+    
+            // Deduct allocated volumes
+            for (const allocation of allocations) {
+                const contractIndex = contracts.map((c) => {return c.contract_id}).indexOf(allocation.contract_id)
+                if(contractIndex > -1)
+                    contracts[contractIndex]["volume_MWh"] -= allocation.volume_MWh
+            }
+
+            // Prepare output
+            for (const contract of contracts) {
+                const remaining = {
+                    "transaction": transactionFolName,
+                    "contract_id": contract.contract_id,
+                    "reportingStart": contract.reportingStart,
+                    "reportingEnd": contract.reportingEnd,
+                    "country": contract.country,
+                    "region": contract.region,
+                    "total_MWh": contract.total_MWh,
+                    "allocated_MWh": (contract.total_MWh - contract.volume_MWh),
+                    "remaining_MWh": contract.volume_MWh
+                }
+                remainings.push(remaining)
+            }
+        } catch (error) {
+            console.log(error)
+        }
+}
+
+ 
+    let result = {
+        "remainings": contractsRemainingsHeader.join(",") + "\r\n" +
+            Papa.unparse(remainings, {
+                quotes: contractsRemainingsColumnTypes.map((ct) => {return ct != 'number'}),
+                quoteChar: '"',
+                escapeChar: '"',
+                delimiter: ",",
+                header: false,
+                newline: "\r\n",
+                skipEmptyLines: false,
+                columns: null
+            })
+    }
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
 }
