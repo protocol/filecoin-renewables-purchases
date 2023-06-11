@@ -621,6 +621,29 @@ switch (activities) {
         await fs.promises.writeFile(`_contracts_remainings/contracts_remianings_${(new Date()).toISOString()}.csv`, remainingsCsv)
 
         break
+    case 'calculate-allocation-vs-energy-use-ratio':
+        // Create CSV file with calculated all allocation vs energu use ratio
+        const calculateAllocationVsEnergyUseRatioResponse = await calculateAllocationVsEnergyUseRatio()
+        if(calculateAllocationVsEnergyUseRatioResponse == null) {
+            console.error(`Error! Could not create CSV file containing all allocation vs energu use ratio.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        const ratiosCsv = calculateAllocationVsEnergyUseRatioResponse.ratios
+
+        try {
+            // Bakup existing files
+            await fs.promises.rename(`_allocation_ratios/allocation_ratios_${(new Date()).toISOString()}.csv`, `_allocation_ratios/allocation_ratios_${(new Date()).toISOString()}.csv.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)
+        }
+
+        // Create new files
+        await fs.promises.writeFile(`_allocation_ratios/allocation_ratios_${(new Date()).toISOString()}.csv`, ratiosCsv)
+
+        break
     default:
         console.error(`Error! Bad argument provided. ${activities} are not supported.`)
 }
@@ -3625,6 +3648,137 @@ async function calculateContractsRemainings() {
         "remainings": contractsRemainingsHeader.join(",") + "\r\n" +
             Papa.unparse(remainings, {
                 quotes: contractsRemainingsColumnTypes.map((ct) => {return ct != 'number'}),
+                quoteChar: '"',
+                escapeChar: '"',
+                delimiter: ",",
+                header: false,
+                newline: "\r\n",
+                skipEmptyLines: false,
+                columns: null
+            })
+    }
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Calculate allocation vs energy use ratio
+async function calculateAllocationVsEnergyUseRatio() {
+    const allocationVsEnergyUseHeader = ['"transaction"', '"contract_id"', '"reportingStart"', '"reportingEnd"', '"country"', '"region"', '"contract_volume_MWh"', '"allocation_id"', '"minerID"', '"miner locations"', '"allocation_volume_MWh"', '"energy_use"']
+    const allocationVsEnergyUseColumnTypes = ["string", "string", "string", "string", "string", "string", "number", "string", "string", "string", "number", "number"]
+
+    let ratios = []
+    const transactionFolders = fs.readdirSync("./").filter((file) => {
+        return file.indexOf("_transaction_") > -1
+    })
+
+    for await (const transactionFol of transactionFolders) {
+        const transactionFolPathChunks = transactionFol.split("/")
+        const transactionFolName = transactionFolPathChunks[transactionFolPathChunks.length-1]
+        try {
+            // Load transaction contracts
+            let contracts = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step2FileNameSuffix}`)
+            contracts = contracts.filter((c) => {
+                if(c.volume_MWh == undefined)
+                    return false
+                let recsAvailable = (typeof c.volume_MWh != "number")
+                    ? Number((c.volume_MWh.replace(",", ""))) : c.volume_MWh
+                c.volume_MWh = recsAvailable         // Make sure we have a number here (step 2 has strings in some fields)!
+                c.total_MWh = recsAvailable
+                return true
+            })
+    
+            let allocations = await getCsvAndParseToJson(`${transactionFol}/${transactionFolName}${step3FileNameSuffix}`)
+            allocations = allocations.filter((a) => {
+                if(a.volume_MWh == undefined)
+                    return false
+                let recsAllocated = (typeof a.volume_MWh != "number")
+                    ? Number((a.volume_MWh.replace(",", ""))) : a.volume_MWh
+                a.volume_MWh = recsAllocated         // Make sure we have a number here!
+                return true
+            })
+
+            // Check if we can find _assets folder and synthetic locations
+            // for calculating energy use weights
+            const syntheticLocationsFilePath = `${transactionFol}/_assets/synthetic-country-state-province-latest.json`
+            let locationFileExists = false
+            let syntheticLocations = null
+            try {
+                await fs.promises.access(syntheticLocationsFilePath, fs.constants.F_OK)
+                locationFileExists = true
+            } catch (error) {
+                locationFileExists = false
+            }
+            if(locationFileExists) {
+                syntheticLocations = await fs.promises.readFile(syntheticLocationsFilePath, {
+                    encoding:'utf8',
+                    flag:'r'
+                })
+                syntheticLocations = JSON.parse(syntheticLocations).regions           // when using synthetic-country-state-province-latest.json
+            }
+    
+            // Deduct allocated volumes
+            for (let allocation of allocations) {
+                let minerRegions = []
+                const contractFilter = contracts.filter((c) => {
+                    return c.contract_id == allocation.contract_id
+                })
+                if(contractFilter.length != 1)
+                    continue
+                let contract = JSON.parse(JSON.stringify(contractFilter[0]))
+				// Rename contract volume_MWh and allocation volume_MWh
+				delete Object.assign(contract, {contract_volume_MWh: contract.volume_MWh }).volume_MWh
+				delete Object.assign(allocation, {allocation_volume_MWh: allocation.volume_MWh }).volume_MWh
+                allocation = Object.assign(allocation, contract)
+
+                const energyUse = await _totalEnergyFromModel(moment(allocation.reportingStart, "YYYY-MM-DD").format("YYYY-MM-DD"), moment(allocation.reportingEnd, "YYYY-MM-DD").format("YYYY-MM-DD"),
+                    allocation.minerID)
+                
+                // Add total_energy_upper_MWh to allocation object
+                allocation.total_energy_upper_MWh = energyUse.total_energy_upper_MWh
+
+                // Filter out miner's locations
+                if(syntheticLocations != null) {
+                    minerRegions = syntheticLocations.filter((l)=>{
+                        return l.provider == allocation.minerID
+                    }).map((l)=>{
+                        return l.region
+                    })
+                }
+                allocation.regions = minerRegions
+
+                console.log(`Processed allocation ${allocation.allocation_id}, miner: ${allocation.minerID}, regions: ${minerRegions.join(', ')}`)
+            }
+
+            // Prepare the output
+            let transactionRations = allocations.map((allocation)=>{
+                return {
+                    "transaction": transactionFolName,
+                    "contract_id": allocation.contract_id,
+                    "reportingStart": allocation.reportingStart,
+                    "reportingEnd": allocation.reportingEnd,
+                    "country": allocation.country,
+                    "region": allocation.region,
+                    "contract_volume_MWh": allocation.contract_volume_MWh,
+                    "allocation_id": allocation.allocation_id,
+                    "minerID": allocation.minerID,
+                    "miner_locations": allocation.regions.join(", "),
+                    "allocation_volume_MWh": allocation.allocation_volume_MWh,
+                    "total_energy_upper_MWh": allocation.total_energy_upper_MWh
+                }
+            })
+            ratios = ratios.concat(transactionRations)
+        } catch (error) {
+            console.log(error)
+        }
+}
+
+ 
+    let result = {
+        "ratios": allocationVsEnergyUseHeader.join(",") + "\r\n" +
+            Papa.unparse(ratios, {
+                quotes: allocationVsEnergyUseColumnTypes.map((ct) => {return ct != 'number'}),
                 quoteChar: '"',
                 escapeChar: '"',
                 delimiter: ",",
