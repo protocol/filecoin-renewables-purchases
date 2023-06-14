@@ -1,6 +1,10 @@
-let fs = require('fs');
-const { parse } = require('csv-parse/sync');
-const json2csvparse = require('json2csv');
+// let fs = require('fs');
+// const { parse } = require('csv-parse/sync');
+// const json2csvparse = require('json2csv');
+import fs from 'fs';
+import { parse } from 'csv-parse/sync';
+import json2csvparse from 'json2csv';
+
 
 
 
@@ -160,14 +164,14 @@ async function compare_order_to_delivery(path, transaction_folder, verbosity){
   console.log('Examining order and delivery for '+transaction_folder)
 
   // Load order data
-  step2_file=transaction_folder+'_step2_orderSupply.csv',
-  step2_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
-  ordered_Volume = step2_data.reduce((prev, elem) => prev+Number(elem.volume_MWh), 0);
+  var step2_file=transaction_folder+'_step2_orderSupply.csv'
+  var step2_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  var ordered_Volume = step2_data.reduce((prev, elem) => prev+Number(elem.volume_MWh), 0);
   console.log('  Ordered ' + ordered_Volume + ' MWh')
 
   // Load delivered data
-  step6_data = await load_step6_data(path, transaction_folder)
-  delivered_Volume = step6_data.reduce((prev, elem) => {
+  var step6_data = await load_step6_data(path, transaction_folder)
+  var delivered_Volume = step6_data.reduce((prev, elem) => {
     return prev+(Number(elem.volume_Wh)/1e6)
   }, 0);
   console.log('  Delivered ' + delivered_Volume + ' MWh ('+(Math.round(delivered_Volume/ordered_Volume*100))+'%)')
@@ -197,7 +201,7 @@ async function compare_order_to_delivery(path, transaction_folder, verbosity){
 async function load_step6_data(path, transaction_folder){
   
   // Load step5 information, which points us to the delivery folder(s)
-  step5_file=transaction_folder+'_step5_redemption_information.csv'
+  var step5_file=transaction_folder+'_step5_redemption_information.csv'
   try{
     var step5_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step5_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   } catch{
@@ -205,7 +209,7 @@ async function load_step6_data(path, transaction_folder){
     return []
   }
 
-  delivery_folders = step5_data.reduce((prev, elem) => {
+  var delivery_folders = step5_data.reduce((prev, elem) => {
     if (!(prev.includes(elem.attestation_folder))){
       return prev.concat(elem.attestation_folder)
     } else {
@@ -215,8 +219,8 @@ async function load_step6_data(path, transaction_folder){
 
   if (delivery_folders.length > 1){console.log('  > Multiple delivery folders not tested.')}
 
-  toReturn = delivery_folders.reduce((prev, elem) => {
-    step6_file=elem+'_step6_generationRecords.csv'
+  var toReturn = delivery_folders.reduce((prev, elem) => {
+    var step6_file=elem+'_step6_generationRecords.csv'
     try{
       var new_step6 = parse(fs.readFileSync(path+'/'+elem+'/'+step6_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
       return prev.concat(new_step6)
@@ -398,7 +402,10 @@ async function test_step_5(path){
 
 }
 
-module.exports = {test_step_7, test_step_3, test_step_5, compare_order_to_delivery}
+// module.exports = {test_step_7, test_step_3, test_step_5, compare_order_to_delivery}
+export { test_step_7, test_step_3, test_step_5, compare_order_to_delivery };
+
+// export default test_utility
 
 // test_step_7('20210831_delivery', '20210831_delivery_step7_certificate_to_contract.csv')
 //test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')

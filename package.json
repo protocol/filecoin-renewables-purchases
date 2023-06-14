@@ -33,8 +33,7 @@
     "json2csv": "^5.0.7",
     "leaflet": "^1.8.0",
     "moment": "^2.29.3",
-    "papaparse": "^5.3.2",
-    "xlsx": "^0.18.5"
+    "papaparse": "^5.3.2"
   },
   "devDependencies": {
     "env-cmd": "^10.1.0"
