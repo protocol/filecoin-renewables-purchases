@@ -106,6 +106,7 @@ function getTimezoneOffset(countryCode, timeStamp, generatorName){
     (countryCode == 'BE')||
     (countryCode == 'NL')||
     (countryCode == 'NO')||
+    (countryCode == 'PL')||
     (countryCode == 'DK')
     ){
     var mmFwd = 3

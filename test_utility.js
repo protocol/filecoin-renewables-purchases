@@ -300,10 +300,15 @@ async function compare_order_to_delivery(path, transaction_folder, verbosity){
       return prev + delivElem.volume_Wh/1e6
     },0));
 
-    var percentFound = Math.round(deliveries.reduce((prev,delivElem)=>prev + delivElem.volume_Wh/1e6 ,0)/elem.volume_MWh*100)
+    var MWh_delivered = deliveries.reduce((prev,delivElem)=>prev + delivElem.volume_Wh/1e6 ,0)
+    var MWh_contracted = elem.volume_MWh
+    var percentFound = Math.round(MWh_delivered/MWh_contracted*100)
+    // var percentFound = Math.round(deliveries.reduce((prev,delivElem)=>prev + delivElem.volume_Wh/1e6 ,0)/elem.volume_MWh*100)
     if(percentFound<100){
       console.log(' ')
-      console.log('   '+elem.contract_id + ' found '+deliveries.length+' certificates. Delivered '+percentFound+'%')
+      console.log('   '+elem.contract_id + ' found '+deliveries.length+' certificates.')
+      console.log('     Country: '+elem.country + ' Reporting Start: '+elem.reportingStart +' Reporting End: '+elem.reportingEnd)
+      console.log('     Delivered '+MWh_delivered+' MWh of '+MWh_contracted+' MWh ('+percentFound+'%)')
       var attestation_records = get_attestations_for_contract(elem.contract_id, step5_data)
       // attestation_records.forEach(attest_record_elem => console.log('       - '+attest_record_elem.attestation_id))
     }
