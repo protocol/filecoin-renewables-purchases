@@ -270,6 +270,62 @@ switch (activities) {
         await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
 
         break
+    case 'create-step-7-automatic-redemption':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Create step 7 CSV
+        step7Csv = await createStep7AutomaticRedemption(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
+
+        break
+    case 'create-step-7-manual-redemption':
+        attestationFolder = args[1]
+        transactionFolder = args[2]
+
+        attestationFolderChunks = attestationFolder.split("/")
+        attestationFolderName = attestationFolderChunks[attestationFolderChunks.length-1]
+
+        if(attestationFolder == null || transactionFolder == null) {
+            console.error(`Error! Bad arguments provided. Both, attestation folder and transaction folder paths are required parameters.`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Create step 7 CSV
+        step7Csv = await createStep7ManualRedemption(attestationFolder, transactionFolder)
+
+        try {
+            // Bakup existing file
+            await fs.promises.rename(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, `${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}.bak-${(new Date()).toISOString()}`)
+        }
+        catch (error) {
+            console.log(error)
+        }
+
+        // Create new file
+        await fs.promises.writeFile(`${attestationFolder}/${attestationFolderName}${step7FileNameSuffix}`, step7Csv)
+
+        break
     case 'rename-attestations-sp':
         attestationFolder = args[1]
 
@@ -1882,6 +1938,190 @@ function _step73DItterateCertificates(step2, step3, step6, step7, transactionFol
         console.log(`REMOVED ${certificate.certificate} (${certificate.country}, ${certificate.region}, ${certificate.generationStart}-${certificate.generationEnd}, ${certificate.volume_Wh / 1000000} MWh)`)
         step6.splice(certificateIndex, 1)
     }
+}
+
+// Create step 7 where we have automatic redemption in place
+async function createStep7AutomaticRedemption(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
+    const step7ColumnTypes = ["string", "number", "string", "string", "string"]
+
+    let step7 = []
+
+    // Grab step 3, 5 and 6 CSVs
+    let step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    let step5 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
+    let step6 = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+
+    for await (const attestation of step6) {
+        // Check if this is valid line in CSV file
+        if(!attestation || !attestation.attestation_id)
+            continue
+
+        // Grab certificate_id
+        const certificateId = attestation.certificate
+
+        // Look for attestation in step 5
+        let allocationFilter = step5.filter((redemption)=>{
+            return redemption.attestation_id == attestation.attestation_id
+        })
+
+        if(allocationFilter.length != 1) {
+            console.error(`${attestation.attestation_id} can not be uniquely matched in ${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Grab allocation_id from step 5
+        const allocationId = allocationFilter[0].allocation_id
+
+        if(!allocationId) {
+            console.error(`Allocation for ${attestation.attestation_id} in ${transactionFolder}/${transactionFolderName}${step5FileNameSuffix} is undefined`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Grab unique contract_id and minerID from step 3
+        allocationFilter = step3.filter((allocation)=>{
+            return allocation.allocation_id == allocationId
+        })
+
+        if(allocationFilter.length != 1) {
+            console.error(`${allocationId} can not be uniquely matched in ${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        const contractId = allocationFilter[0].contract_id
+        const minerId = allocationFilter[0].minerID
+        const volumeMWh = allocationFilter[0].volume_MWh
+
+        step7.push({
+            certificate: certificateId,
+            volume_MWh: volumeMWh,
+            order_folder: transactionFolderName,
+            contract: contractId,
+            minerID: minerId
+        })
+    }
+ 
+    let result = step7Header.join(",") + "\r\n" +
+        Papa.unparse(step7, {
+            quotes: step7ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+}
+
+// Create step 7 where we have manual redemption in place
+async function createStep7ManualRedemption(attestationFolder, transactionFolder) {
+    const attestationFolderPathChunks = attestationFolder.split("/")
+    const attestationFolderName = attestationFolderPathChunks[attestationFolderPathChunks.length-1]
+
+    const transactionFolderPathChunks = transactionFolder.split("/")
+    const transactionFolderName = transactionFolderPathChunks[transactionFolderPathChunks.length-1]
+
+    const step7Header = ['"certificate"', '"volume_MWh"', '"order_folder"', '"contract"', '"minerID"']
+    const step7ColumnTypes = ["string", "number", "string", "string", "string"]
+
+    let step7 = []
+
+    // Grab step 3, 5 and 6 CSVs
+    let step3 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+    let step5 = await getCsvAndParseToJson(`${transactionFolder}/${transactionFolderName}${step5FileNameSuffix}`)
+    let step6 = await getCsvAndParseToJson(`${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+
+    for await (const redemption of step5) {
+        // Check if this is valid line in CSV file
+        if(!redemption || !redemption.attestation_id || redemption.redemption_process.trim().toLowerCase() != 'manual')
+            continue
+
+        // Grab contract_id
+        const contractId = redemption.contract_id
+
+        if(!contractId) {
+            console.error(`Contract for ${redemption.attestation_id} in ${transactionFolder}/${transactionFolderName}${step5FileNameSuffix} is undefined`)
+            await new Promise(resolve => setTimeout(resolve, 100))
+            process.exit()
+        }
+
+        // Look for matching allocations in step 3
+        let allocationFilter = step3.filter((allocation)=>{
+            if(typeof allocation.defaulted == "string") {
+                allocation.defaulted = allocation.defaulted.replace(',', '')
+                allocation.defaulted = allocation.defaulted.trim()
+                allocation.defaulted = Number(allocation.defaulted)
+            }
+            if(typeof allocation.volume_MWh == "string") {
+                allocation.volume_MWh = allocation.volume_MWh.replace(',', '')
+                allocation.volume_MWh = allocation.volume_MWh.trim()
+                allocation.volume_MWh = Number(allocation.volume_MWh)
+            }
+            return (allocation.contract_id == contractId && !allocation.defaulted)
+        })
+console.log(allocationFilter)
+        if(allocationFilter.length == 0) {
+            console.error(`No allocations could be found for contract ${contractId} in ${transactionFolder}/${transactionFolderName}${step3FileNameSuffix}`)
+            continue
+//            await new Promise(resolve => setTimeout(resolve, 100))
+//            process.exit()
+        }
+
+        // Look for matching certificates in step 6
+        let certificateFilter = step6.filter((certificate)=>{
+            return certificate.attestation_id == redemption.attestation_id
+        })
+
+        if(certificateFilter.length == 0) {
+            console.error(`No certificates could be found for attestation ${redemption.attestation_id} in ${attestationFolder}/${attestationFolderName}${step6FileNameSuffix}`)
+            continue
+//            await new Promise(resolve => setTimeout(resolve, 100))
+//            process.exit()
+        }
+console.log(certificateFilter)
+/*
+        step7.push({
+            certificate: certificateId,
+            volume_MWh: volumeMWh,
+            order_folder: transactionFolderName,
+            contract: contractId,
+            minerID: minerId
+        })
+*/
+    }
+ /*
+    let result = step7Header.join(",") + "\r\n" +
+        Papa.unparse(step7, {
+            quotes: step7ColumnTypes.map((ct) => {return ct != 'number'}),
+            quoteChar: '"',
+            escapeChar: '"',
+            delimiter: ",",
+            header: false,
+            newline: "\r\n",
+            skipEmptyLines: false,
+            columns: null
+        })
+
+    return new Promise((resolve) => {
+        resolve(result)
+    })
+*/
+await new Promise(resolve => setTimeout(resolve, 100))
+process.exit()
 }
 
 function _isSubsetSum(set, n, sum)
