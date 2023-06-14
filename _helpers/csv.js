@@ -1583,6 +1583,7 @@ function _step73DItterateCertificates(step2, step3, step6, step7, transactionFol
                 const reportingRegion = contract.region
                 const reportingStart = moment(contract.reportingStart, "YYYY-MM-DD")
                 const reportingEnd = moment(contract.reportingEnd, "YYYY-MM-DD")
+
                 let matchingDateRange
                 switch (itteration) {
                     case 1:
@@ -2010,11 +2011,11 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
     const step3Header = ['"allocation_id"', '"UUID"', '"contract_id"', '"minerID"', '"volume_MWh"', '"defaulted"',
         '"step4_ZL_contract_complete"', '"step5_redemption_data_complete"', '"step6_attestation_info_complete"',
         '"step7_certificates_matched_to_supply"', '"step8_IPLDrecord_complete"', '"step9_transaction_complete"',
-        '"step10_volta_complete"', '"step11_finalRecord_complete"']
+        '"step10_volta_complete"', '"step11_finalRecord_complete"', '"allocation_cid"']
     const step3ColumnTypes = ["string", "string", "string", "string", "number", "number",
         "number", "number", "number",
         "number", "number", "number",
-        "number", "number"]
+        "number", "number", "string"]
 
     let step3 = []
     let minersLocations = []
@@ -2336,7 +2337,8 @@ async function _consumeContracts(transactionFolderName, miners, minersEnergyData
                     step8_IPLDrecord_complete: 0,
                     step9_transaction_complete: 0,
                     step10_volta_complete: 0,
-                    step11_finalRecord_complete: 0
+                    step11_finalRecord_complete: 0,
+                    allocation_cid: null
                 }
                 step3.push(allocation)
                 previousAllocations.push(allocation)
@@ -2599,7 +2601,8 @@ async function _consumeContractRegardlessRegion(transactionFolderName, miners, m
                 step8_IPLDrecord_complete: 0,
                 step9_transaction_complete: 0,
                 step10_volta_complete: 0,
-                step11_finalRecord_complete: 0
+                step11_finalRecord_complete: 0,
+                allocation_cid: null
             }
             step3.push(allocation)
             previousAllocations.push(allocation)
