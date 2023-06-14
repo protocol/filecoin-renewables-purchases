@@ -1,10 +1,6 @@
-// let fs = require('fs');
-// const { parse } = require('csv-parse/sync');
-// const json2csvparse = require('json2csv');
 import fs from 'fs';
 import { parse } from 'csv-parse/sync';
 import json2csvparse from 'json2csv';
-
 
 
 
@@ -157,6 +153,95 @@ async function test_step_3(folder){
 
 }
 
+function get_deliveries_for_contract(contract_name, step_5_data, step_6_data){
+
+  // First find the redemptions for this statement, following step 2 -> step 5
+  // Each step 2 contract may have one or more step 5 redemptions
+  var correspondingRedemptions = step_5_data.reduce((prev, elem) => {
+    if (elem.contract_id == contract_name){
+      prev.push(elem)
+    }
+    return prev
+  }, [])
+
+  // Now for each redemption find the corresponding step 6 certificates
+  // Again, there may be more than one step 6 certificate for each recemption
+  // A 'certificate' is a line item on a pdf
+  var correspondingCertificates = correspondingRedemptions.reduce((prev, elem)=>{
+    var matching_certificates = step_6_data.filter(step6Elem => step6Elem.attestation_id == elem.attestation_id)
+    return prev.concat(matching_certificates)
+  }, [])
+  return correspondingCertificates
+
+}
+
+function get_attestations_for_contract(contract_name, step_5_data){
+
+  // First find the redemptions for this statement, following step 2 -> step 5
+  // Each step 2 contract may have one or more step 5 redemptions
+  var correspondingRedemptions = step_5_data.reduce((prev, elem) => {
+    if (elem.contract_id == contract_name){
+      prev.push(elem)
+    }
+    return prev
+  }, [])
+  return correspondingRedemptions
+
+}
+
+function getYYYYMMDD(inputString){
+  // get yyyy-mm-dd and make sure we were given the right format
+  var rx = /\d\d\d\d-\d\d-\d\d/
+  var yyyymmddSubstring = rx.exec(inputString);
+  try{
+    yyyymmddSubstring[0]
+  }catch{error()}
+
+  var yyyy = Number(yyyymmddSubstring[0].substring(0,4))
+  var mm = Number(yyyymmddSubstring[0].substring(5,7))
+  var dd = Number(yyyymmddSubstring[0].substring(8,10))
+
+  return([yyyy, mm, dd])
+}
+
+function timeIsBeforeOrEqual(first, last){
+  // If the years are unequal, return
+  if (first[0]<last[0]){
+    return true
+  }
+  if (first[0]>last[0]){
+    return false
+  }
+
+  // If same year, check months
+  if (first[1]<last[1]){
+    return true
+  }
+  if (first[1]>last[1]){
+    return false
+  }
+
+  // If same month, check day
+  if (first[2]<=last[2]){
+    return true
+  }
+  if (first[2]>last[2]){
+    return false
+  }
+}
+
+function orderDateIsWithinReportingRange(step2_contract, step6_certificate){
+  var step2_start = getYYYYMMDD(step2_contract.reportingStart)
+  var step2_end = getYYYYMMDD(step2_contract.reportingEnd)
+  var step6_start = getYYYYMMDD(step6_certificate.reportingStart)
+  var step6_end = getYYYYMMDD(step6_certificate.reportingEnd)
+
+  var orderStartAfterDeliveryStart = timeIsBeforeOrEqual(step6_start, step2_start)
+  var orderEndBeforeDeliveryEnd = timeIsBeforeOrEqual(step2_end, step6_end)
+
+  return orderStartAfterDeliveryStart && orderEndBeforeDeliveryEnd
+}
+
 
 async function compare_order_to_delivery(path, transaction_folder, verbosity){
 
@@ -164,10 +249,16 @@ async function compare_order_to_delivery(path, transaction_folder, verbosity){
   console.log('Examining order and delivery for '+transaction_folder)
 
   // Load order data
-  var step2_file=transaction_folder+'_step2_orderSupply.csv'
-  var step2_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  var step2_file=transaction_folder+'_step2_orderSupply.csv',
+  step2_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step2_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
   var ordered_Volume = step2_data.reduce((prev, elem) => prev+Number(elem.volume_MWh), 0);
   console.log('  Ordered ' + ordered_Volume + ' MWh')
+
+  // Load step 5
+  var step5_file=transaction_folder+'_step5_redemption_information.csv'
+  const step5_data = parse(fs.readFileSync(path+'/'+transaction_folder+'/'+step5_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
+  var step5_total_MWh = step5_data.reduce((prev, elem) => prev+Number(elem.volume_required), 0);
+  console.log('  Generated step 5 retirement instructions for ' + step5_total_MWh + ' MWh ('+(Math.round(step5_total_MWh/ordered_Volume*100))+'%)')
 
   // Load delivered data
   var step6_data = await load_step6_data(path, transaction_folder)
@@ -175,6 +266,50 @@ async function compare_order_to_delivery(path, transaction_folder, verbosity){
     return prev+(Number(elem.volume_Wh)/1e6)
   }, 0);
   console.log('  Delivered ' + delivered_Volume + ' MWh ('+(Math.round(delivered_Volume/ordered_Volume*100))+'%)')
+
+  // Find all the deliveries for a given contract
+  // This traces step2_contract -> step5_redemption -> step6_certificate
+  // Each of these steps may have a one->many mapping
+  
+  step2_data.forEach(elem => {
+    var deliveries = get_deliveries_for_contract(elem.contract_id, step5_data, step6_data)
+    // console.log(deliveries)
+    // console.log(deliveries)
+
+    // Check that these deliveries are for the right country
+    deliveries.forEach(deliverElem=>{
+      if(!elem.country == deliverElem.country){
+        console.log(' >>> Warning! Country doesn\'t match')
+        console.log(' >>>   '+elem.contract_id + ' is '+elem.country)
+        console.log(' >>>   '+deliverElem.certificate + ' is '+deliverElem.country)
+      }
+    })
+
+    // Check that the order date range is inside the reporting date range on the certificate
+    deliveries.forEach(deliverElem=>{
+      if (!orderDateIsWithinReportingRange(elem, deliverElem)){
+        console.log(' >>> Warning! Order date isnt in delivery reporting range')
+        console.log('  '+elem.contract_id+': '+elem.reportingStart + ' to ' + elem.reportingEnd)
+        console.log('  '+deliverElem.certificate+': '+deliverElem.reportingStart + ' to ' + deliverElem.reportingEnd)
+      }
+      
+    })
+
+    console.log(deliveries.reduce((prev,delivElem) => {
+      // console.log(delivElem.volume_Wh/1e6)
+      return prev + delivElem.volume_Wh/1e6
+    },0));
+
+    var percentFound = Math.round(deliveries.reduce((prev,delivElem)=>prev + delivElem.volume_Wh/1e6 ,0)/elem.volume_MWh*100)
+    if(percentFound<100){
+      console.log(' ')
+      console.log('   '+elem.contract_id + ' found '+deliveries.length+' certificates. Delivered '+percentFound+'%')
+      var attestation_records = get_attestations_for_contract(elem.contract_id, step5_data)
+      // attestation_records.forEach(attest_record_elem => console.log('       - '+attest_record_elem.attestation_id))
+    }
+    
+  })
+
 
   // Compare order to delivery
   // verbose flag -> output itemized list of orders that don't match
@@ -225,7 +360,7 @@ async function load_step6_data(path, transaction_folder){
       var new_step6 = parse(fs.readFileSync(path+'/'+elem+'/'+step6_file, {encoding:'utf8', flag:'r'}), {columns: true, cast: true});
       return prev.concat(new_step6)
     }catch{
-      console.log('  No delivered volume '+step6_file)
+      console.log('  No delivered volume: could not find or parse '+path+'/'+elem+'/'+step6_file)
       return prev
     }
     
@@ -402,10 +537,7 @@ async function test_step_5(path){
 
 }
 
-// module.exports = {test_step_7, test_step_3, test_step_5, compare_order_to_delivery}
 export { test_step_7, test_step_3, test_step_5, compare_order_to_delivery };
-
-// export default test_utility
 
 // test_step_7('20210831_delivery', '20210831_delivery_step7_certificate_to_contract.csv')
 //test_step_7('20220429_SP_delivery', '20220429_SP_delivery_step7_certificate_to_contract.csv')
