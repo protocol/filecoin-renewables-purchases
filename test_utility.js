@@ -295,10 +295,10 @@ async function compare_order_to_delivery(path, transaction_folder, verbosity){
       
     })
 
-    console.log(deliveries.reduce((prev,delivElem) => {
-      // console.log(delivElem.volume_Wh/1e6)
-      return prev + delivElem.volume_Wh/1e6
-    },0));
+    // console.log(deliveries.reduce((prev,delivElem) => {
+    //   // console.log(delivElem.volume_Wh/1e6)
+    //   return prev + delivElem.volume_Wh/1e6
+    // },0));
 
     var MWh_delivered = deliveries.reduce((prev,delivElem)=>prev + delivElem.volume_Wh/1e6 ,0)
     var MWh_contracted = elem.volume_MWh
@@ -357,7 +357,7 @@ async function load_step6_data(path, transaction_folder){
     }
   }, []);
 
-  if (delivery_folders.length > 1){console.log('  > Multiple delivery folders not tested.')}
+  if (delivery_folders.length > 1){console.log('  > Multiple delivery folders detected')}
 
   var toReturn = delivery_folders.reduce((prev, elem) => {
     var step6_file=elem+'_step6_generationRecords.csv'
