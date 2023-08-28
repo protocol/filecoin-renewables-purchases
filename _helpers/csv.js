@@ -2325,7 +2325,7 @@ async function createStep3(transactionFolder, minersLocationsFile, priorityMiner
     }
     catch (error)
     {
-        console.error('Input files are missing or corrupted')
+        console.error(`Input files are missing or corrupted. ${error}`)
         return new Promise((resolve) => {
             resolve(null)
         })
@@ -3225,7 +3225,7 @@ async function createStep5(transactionFolder, attestationFolder, network, networ
                     redemptionPurpose = `${attestation.tokenizationProtocol}-NWID${attestation.networkId}-${attestation.tokenType}`
                     break
                 case "cid":
-                    const ipfsNodeAddr = '/dns4/sandbox.co2.storage/tcp/5002/https'
+                    const ipfsNodeAddr = '/dns4/web1.co2.storage/tcp/5002/https'
                     const ipfs = await createClient(ipfsNodeAddr)
                     const beneficiaryData = {
                         "Description": "Redeemed for the purpose of tokenization",
